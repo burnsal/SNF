@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+<head>
+
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>6.1 Appendix A: Summary Statistics Tables | Readmission Analysis</title>
+  <meta name="description" content="6.1 Appendix A: Summary Statistics Tables | Readmission Analysis" />
+  <meta name="generator" content="bookdown 0.32 and GitBook 2.6.7" />
+
+  <meta property="og:title" content="6.1 Appendix A: Summary Statistics Tables | Readmission Analysis" />
+  <meta property="og:type" content="book" />
+  
+  
+  
+
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="6.1 Appendix A: Summary Statistics Tables | Readmission Analysis" />
+  
+  
+  
+
+<meta name="author" content="Amira Burns" />
+
+
+<meta name="date" content="2023-02-01" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  
+  
+<link rel="prev" href="appendices.html"/>
+<link rel="next" href="AppendixB.html"/>
+<script src="assets/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
+<link href="assets/gitbook-2.6.7/css/style.css" rel="stylesheet" />
+<link href="assets/gitbook-2.6.7/css/plugin-table.css" rel="stylesheet" />
+<link href="assets/gitbook-2.6.7/css/plugin-bookdown.css" rel="stylesheet" />
+<link href="assets/gitbook-2.6.7/css/plugin-highlight.css" rel="stylesheet" />
+<link href="assets/gitbook-2.6.7/css/plugin-search.css" rel="stylesheet" />
+<link href="assets/gitbook-2.6.7/css/plugin-fontsettings.css" rel="stylesheet" />
+<link href="assets/gitbook-2.6.7/css/plugin-clipboard.css" rel="stylesheet" />
+
+
+
+
+
+
+
+
+<link href="assets/anchor-sections-1.1.0/anchor-sections.css" rel="stylesheet" />
+<link href="assets/anchor-sections-1.1.0/anchor-sections-hash.css" rel="stylesheet" />
+<script src="assets/anchor-sections-1.1.0/anchor-sections.js"></script>
+<script src="assets/kePrint-0.0.1/kePrint.js"></script>
+<link href="assets/lightable-0.0.1/lightable.css" rel="stylesheet" />
+
+
+
+
+</head>
+
+<body>
+
+
+
+  <div class="book without-animation with-summary font-size-2 font-family-1" data-basepath=".">
+
+    <div class="book-summary">
+      <nav role="navigation">
+
+<ul class="summary">
+<li class="chapter" data-level="1" data-path="introduction.html"><a href="introduction.html"><i class="fa fa-check"></i><b>1</b> Introduction</a></li>
+<li class="chapter" data-level="2" data-path="methods.html"><a href="methods.html"><i class="fa fa-check"></i><b>2</b> Methods</a></li>
+<li class="chapter" data-level="3" data-path="exploratory-data-analysis.html"><a href="exploratory-data-analysis.html"><i class="fa fa-check"></i><b>3</b> Exploratory Data Analysis</a></li>
+<li class="chapter" data-level="4" data-path="model-fitting.html"><a href="model-fitting.html"><i class="fa fa-check"></i><b>4</b> Model Fitting</a>
+<ul>
+<li class="chapter" data-level="4.1" data-path="cci.html"><a href="cci.html"><i class="fa fa-check"></i><b>4.1</b> CCI</a></li>
+<li class="chapter" data-level="4.2" data-path="lace.html"><a href="lace.html"><i class="fa fa-check"></i><b>4.2</b> LACE</a></li>
+<li class="chapter" data-level="4.3" data-path="hospital.html"><a href="hospital.html"><i class="fa fa-check"></i><b>4.3</b> HOSPITAL</a></li>
+</ul></li>
+<li class="chapter" data-level="5" data-path="discussion-and-conclusions.html"><a href="discussion-and-conclusions.html"><i class="fa fa-check"></i><b>5</b> Discussion and Conclusions</a></li>
+<li class="chapter" data-level="6" data-path="appendices.html"><a href="appendices.html"><i class="fa fa-check"></i><b>6</b> Appendices</a>
+<ul>
+<li class="chapter" data-level="6.1" data-path="AppendixA.html"><a href="AppendixA.html"><i class="fa fa-check"></i><b>6.1</b> Appendix A: Summary Statistics Tables</a></li>
+<li class="chapter" data-level="6.2" data-path="AppendixB.html"><a href="AppendixB.html"><i class="fa fa-check"></i><b>6.2</b> Appendix B: Plots of Empirical Logits by Year, Score</a></li>
+<li class="chapter" data-level="6.3" data-path="AppendixC.html"><a href="AppendixC.html"><i class="fa fa-check"></i><b>6.3</b> Appendix C: Demographic EDA Tables, Plots</a></li>
+<li class="chapter" data-level="6.4" data-path="AppendixD.html"><a href="AppendixD.html"><i class="fa fa-check"></i><b>6.4</b> Appendix D: CCI Model Residual Diagnostics</a></li>
+<li class="chapter" data-level="6.5" data-path="AppendixE.html"><a href="AppendixE.html"><i class="fa fa-check"></i><b>6.5</b> Appendix E: LACE Model Residual Diagnostics</a></li>
+<li class="chapter" data-level="6.6" data-path="AppendixF.html"><a href="AppendixF.html"><i class="fa fa-check"></i><b>6.6</b> Appendix F: HOSPITAL Model Residual Diagnostics</a></li>
+</ul></li>
+</ul>
+
+      </nav>
+    </div>
+
+    <div class="book-body">
+      <div class="body-inner">
+        <div class="book-header" role="navigation">
+          <h1>
+            <i class="fa fa-circle-o-notch fa-spin"></i><a href="./">Readmission Analysis</a>
+          </h1>
+        </div>
+
+        <div class="page-wrapper" tabindex="-1" role="main">
+          <div class="page-inner">
+
+            <section class="normal" id="section-">
+<div id="AppendixA" class="section level2 hasAnchor" number="6.1">
+<h2><span class="header-section-number">6.1</span> Appendix A: Summary Statistics Tables<a href="AppendixA.html#AppendixA" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<table class=" lightable-classic-2" style="font-family: &quot;Arial Narrow&quot;, &quot;Source Sans Pro&quot;, sans-serif; width: auto !important; margin-left: auto; margin-right: auto;">
+<caption>
+<span id="tab:appendA">Table 6.1: </span>Readmission Empirical Statistics by CCI Score
+</caption>
+<thead>
+<tr>
+<th style="text-align:right;">
+CCI Score
+</th>
+<th style="text-align:right;">
+Mean Age
+</th>
+<th style="text-align:right;">
+N
+</th>
+<th style="text-align:right;">
+Readmit No. 
+</th>
+<th style="text-align:right;">
+Readmit Prop
+</th>
+<th style="text-align:right;">
+Readmit Odds
+</th>
+<th style="text-align:right;">
+Readmit Logit
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+41.634
+</td>
+<td style="text-align:right;">
+71
+</td>
+<td style="text-align:right;">
+10
+</td>
+<td style="text-align:right;">
+0.141
+</td>
+<td style="text-align:right;">
+0.164
+</td>
+<td style="text-align:right;">
+-1.808
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+53.778
+</td>
+<td style="text-align:right;">
+243
+</td>
+<td style="text-align:right;">
+28
+</td>
+<td style="text-align:right;">
+0.115
+</td>
+<td style="text-align:right;">
+0.130
+</td>
+<td style="text-align:right;">
+-2.038
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+63.191
+</td>
+<td style="text-align:right;">
+876
+</td>
+<td style="text-align:right;">
+130
+</td>
+<td style="text-align:right;">
+0.148
+</td>
+<td style="text-align:right;">
+0.174
+</td>
+<td style="text-align:right;">
+-1.747
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+71.419
+</td>
+<td style="text-align:right;">
+1948
+</td>
+<td style="text-align:right;">
+301
+</td>
+<td style="text-align:right;">
+0.155
+</td>
+<td style="text-align:right;">
+0.183
+</td>
+<td style="text-align:right;">
+-1.700
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+4
+</td>
+<td style="text-align:right;">
+82.571
+</td>
+<td style="text-align:right;">
+4049
+</td>
+<td style="text-align:right;">
+641
+</td>
+<td style="text-align:right;">
+0.158
+</td>
+<td style="text-align:right;">
+0.188
+</td>
+<td style="text-align:right;">
+-1.671
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+5
+</td>
+<td style="text-align:right;">
+81.987
+</td>
+<td style="text-align:right;">
+2638
+</td>
+<td style="text-align:right;">
+427
+</td>
+<td style="text-align:right;">
+0.162
+</td>
+<td style="text-align:right;">
+0.193
+</td>
+<td style="text-align:right;">
+-1.644
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+6
+</td>
+<td style="text-align:right;">
+83.461
+</td>
+<td style="text-align:right;">
+1842
+</td>
+<td style="text-align:right;">
+300
+</td>
+<td style="text-align:right;">
+0.163
+</td>
+<td style="text-align:right;">
+0.195
+</td>
+<td style="text-align:right;">
+-1.637
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+7
+</td>
+<td style="text-align:right;">
+84.144
+</td>
+<td style="text-align:right;">
+999
+</td>
+<td style="text-align:right;">
+141
+</td>
+<td style="text-align:right;">
+0.141
+</td>
+<td style="text-align:right;">
+0.164
+</td>
+<td style="text-align:right;">
+-1.806
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+8
+</td>
+<td style="text-align:right;">
+83.855
+</td>
+<td style="text-align:right;">
+517
+</td>
+<td style="text-align:right;">
+90
+</td>
+<td style="text-align:right;">
+0.174
+</td>
+<td style="text-align:right;">
+0.211
+</td>
+<td style="text-align:right;">
+-1.557
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+9
+</td>
+<td style="text-align:right;">
+83.144
+</td>
+<td style="text-align:right;">
+250
+</td>
+<td style="text-align:right;">
+33
+</td>
+<td style="text-align:right;">
+0.132
+</td>
+<td style="text-align:right;">
+0.152
+</td>
+<td style="text-align:right;">
+-1.883
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+10
+</td>
+<td style="text-align:right;">
+82.527
+</td>
+<td style="text-align:right;">
+148
+</td>
+<td style="text-align:right;">
+21
+</td>
+<td style="text-align:right;">
+0.142
+</td>
+<td style="text-align:right;">
+0.165
+</td>
+<td style="text-align:right;">
+-1.800
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+11
+</td>
+<td style="text-align:right;">
+79.387
+</td>
+<td style="text-align:right;">
+75
+</td>
+<td style="text-align:right;">
+9
+</td>
+<td style="text-align:right;">
+0.120
+</td>
+<td style="text-align:right;">
+0.136
+</td>
+<td style="text-align:right;">
+-1.992
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+12
+</td>
+<td style="text-align:right;">
+82.533
+</td>
+<td style="text-align:right;">
+92
+</td>
+<td style="text-align:right;">
+13
+</td>
+<td style="text-align:right;">
+0.141
+</td>
+<td style="text-align:right;">
+0.165
+</td>
+<td style="text-align:right;">
+-1.804
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+13
+</td>
+<td style="text-align:right;">
+84.294
+</td>
+<td style="text-align:right;">
+34
+</td>
+<td style="text-align:right;">
+11
+</td>
+<td style="text-align:right;">
+0.324
+</td>
+<td style="text-align:right;">
+0.478
+</td>
+<td style="text-align:right;">
+-0.738
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+14
+</td>
+<td style="text-align:right;">
+84.632
+</td>
+<td style="text-align:right;">
+19
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.000
+</td>
+<td style="text-align:right;">
+0.000
+</td>
+<td style="text-align:right;">
+-Inf
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+15
+</td>
+<td style="text-align:right;">
+84.857
+</td>
+<td style="text-align:right;">
+7
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.000
+</td>
+<td style="text-align:right;">
+0.000
+</td>
+<td style="text-align:right;">
+-Inf
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+16
+</td>
+<td style="text-align:right;">
+79.000
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.000
+</td>
+<td style="text-align:right;">
+0.000
+</td>
+<td style="text-align:right;">
+-Inf
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+17
+</td>
+<td style="text-align:right;">
+83.000
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.000
+</td>
+<td style="text-align:right;">
+0.000
+</td>
+<td style="text-align:right;">
+-Inf
+</td>
+</tr>
+</tbody>
+</table>
+<table class=" lightable-classic-2" style="font-family: &quot;Arial Narrow&quot;, &quot;Source Sans Pro&quot;, sans-serif; width: auto !important; margin-left: auto; margin-right: auto;">
+<caption>
+<span id="tab:appendA">Table 6.1: </span>Readmission Empirical Statistics by LACE Score
+</caption>
+<thead>
+<tr>
+<th style="text-align:right;">
+LACE Score
+</th>
+<th style="text-align:right;">
+Mean Age
+</th>
+<th style="text-align:right;">
+N
+</th>
+<th style="text-align:right;">
+Readmit No. 
+</th>
+<th style="text-align:right;">
+Readmit Prop
+</th>
+<th style="text-align:right;">
+Readmit Odds
+</th>
+<th style="text-align:right;">
+Readmit Logit
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+42.400
+</td>
+<td style="text-align:right;">
+5
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.000
+</td>
+<td style="text-align:right;">
+0.000
+</td>
+<td style="text-align:right;">
+-Inf
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+48.200
+</td>
+<td style="text-align:right;">
+5
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+0.200
+</td>
+<td style="text-align:right;">
+0.250
+</td>
+<td style="text-align:right;">
+-1.386
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+4
+</td>
+<td style="text-align:right;">
+57.273
+</td>
+<td style="text-align:right;">
+44
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+0.023
+</td>
+<td style="text-align:right;">
+0.023
+</td>
+<td style="text-align:right;">
+-3.761
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+5
+</td>
+<td style="text-align:right;">
+61.650
+</td>
+<td style="text-align:right;">
+100
+</td>
+<td style="text-align:right;">
+5
+</td>
+<td style="text-align:right;">
+0.050
+</td>
+<td style="text-align:right;">
+0.053
+</td>
+<td style="text-align:right;">
+-2.944
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+6
+</td>
+<td style="text-align:right;">
+67.569
+</td>
+<td style="text-align:right;">
+239
+</td>
+<td style="text-align:right;">
+17
+</td>
+<td style="text-align:right;">
+0.071
+</td>
+<td style="text-align:right;">
+0.077
+</td>
+<td style="text-align:right;">
+-2.569
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+7
+</td>
+<td style="text-align:right;">
+69.838
+</td>
+<td style="text-align:right;">
+359
+</td>
+<td style="text-align:right;">
+44
+</td>
+<td style="text-align:right;">
+0.123
+</td>
+<td style="text-align:right;">
+0.140
+</td>
+<td style="text-align:right;">
+-1.968
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+8
+</td>
+<td style="text-align:right;">
+75.058
+</td>
+<td style="text-align:right;">
+652
+</td>
+<td style="text-align:right;">
+76
+</td>
+<td style="text-align:right;">
+0.117
+</td>
+<td style="text-align:right;">
+0.132
+</td>
+<td style="text-align:right;">
+-2.025
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+9
+</td>
+<td style="text-align:right;">
+77.822
+</td>
+<td style="text-align:right;">
+1115
+</td>
+<td style="text-align:right;">
+129
+</td>
+<td style="text-align:right;">
+0.116
+</td>
+<td style="text-align:right;">
+0.131
+</td>
+<td style="text-align:right;">
+-2.034
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+10
+</td>
+<td style="text-align:right;">
+77.225
+</td>
+<td style="text-align:right;">
+1462
+</td>
+<td style="text-align:right;">
+210
+</td>
+<td style="text-align:right;">
+0.144
+</td>
+<td style="text-align:right;">
+0.168
+</td>
+<td style="text-align:right;">
+-1.785
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+11
+</td>
+<td style="text-align:right;">
+78.390
+</td>
+<td style="text-align:right;">
+1683
+</td>
+<td style="text-align:right;">
+203
+</td>
+<td style="text-align:right;">
+0.121
+</td>
+<td style="text-align:right;">
+0.137
+</td>
+<td style="text-align:right;">
+-1.987
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+12
+</td>
+<td style="text-align:right;">
+82.185
+</td>
+<td style="text-align:right;">
+3043
+</td>
+<td style="text-align:right;">
+402
+</td>
+<td style="text-align:right;">
+0.132
+</td>
+<td style="text-align:right;">
+0.152
+</td>
+<td style="text-align:right;">
+-1.882
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+13
+</td>
+<td style="text-align:right;">
+81.588
+</td>
+<td style="text-align:right;">
+2997
+</td>
+<td style="text-align:right;">
+517
+</td>
+<td style="text-align:right;">
+0.173
+</td>
+<td style="text-align:right;">
+0.208
+</td>
+<td style="text-align:right;">
+-1.568
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+14
+</td>
+<td style="text-align:right;">
+80.683
+</td>
+<td style="text-align:right;">
+596
+</td>
+<td style="text-align:right;">
+131
+</td>
+<td style="text-align:right;">
+0.220
+</td>
+<td style="text-align:right;">
+0.282
+</td>
+<td style="text-align:right;">
+-1.267
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+15
+</td>
+<td style="text-align:right;">
+79.825
+</td>
+<td style="text-align:right;">
+1203
+</td>
+<td style="text-align:right;">
+313
+</td>
+<td style="text-align:right;">
+0.260
+</td>
+<td style="text-align:right;">
+0.352
+</td>
+<td style="text-align:right;">
+-1.045
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+16
+</td>
+<td style="text-align:right;">
+80.017
+</td>
+<td style="text-align:right;">
+234
+</td>
+<td style="text-align:right;">
+80
+</td>
+<td style="text-align:right;">
+0.342
+</td>
+<td style="text-align:right;">
+0.519
+</td>
+<td style="text-align:right;">
+-0.655
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+17
+</td>
+<td style="text-align:right;">
+77.377
+</td>
+<td style="text-align:right;">
+53
+</td>
+<td style="text-align:right;">
+21
+</td>
+<td style="text-align:right;">
+0.396
+</td>
+<td style="text-align:right;">
+0.656
+</td>
+<td style="text-align:right;">
+-0.421
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+18
+</td>
+<td style="text-align:right;">
+78.273
+</td>
+<td style="text-align:right;">
+11
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+0.091
+</td>
+<td style="text-align:right;">
+0.100
+</td>
+<td style="text-align:right;">
+-2.303
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+19
+</td>
+<td style="text-align:right;">
+81.111
+</td>
+<td style="text-align:right;">
+9
+</td>
+<td style="text-align:right;">
+4
+</td>
+<td style="text-align:right;">
+0.444
+</td>
+<td style="text-align:right;">
+0.800
+</td>
+<td style="text-align:right;">
+-0.223
+</td>
+</tr>
+</tbody>
+</table>
+<table class=" lightable-classic-2" style="font-family: &quot;Arial Narrow&quot;, &quot;Source Sans Pro&quot;, sans-serif; width: auto !important; margin-left: auto; margin-right: auto;">
+<caption>
+<span id="tab:appendA">Table 6.1: </span>Readmission Empirical Statistics by HOSPITAL Score
+</caption>
+<thead>
+<tr>
+<th style="text-align:right;">
+HOS Score
+</th>
+<th style="text-align:right;">
+Mean Age
+</th>
+<th style="text-align:right;">
+N
+</th>
+<th style="text-align:right;">
+Readmit No. 
+</th>
+<th style="text-align:right;">
+Readmit Prop
+</th>
+<th style="text-align:right;">
+Readmit Odds
+</th>
+<th style="text-align:right;">
+Readmit Logit
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+79.000
+</td>
+<td style="text-align:right;">
+86
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+0.035
+</td>
+<td style="text-align:right;">
+0.036
+</td>
+<td style="text-align:right;">
+-3.320
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+78.553
+</td>
+<td style="text-align:right;">
+1198
+</td>
+<td style="text-align:right;">
+80
+</td>
+<td style="text-align:right;">
+0.067
+</td>
+<td style="text-align:right;">
+0.072
+</td>
+<td style="text-align:right;">
+-2.637
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+79.491
+</td>
+<td style="text-align:right;">
+2045
+</td>
+<td style="text-align:right;">
+170
+</td>
+<td style="text-align:right;">
+0.083
+</td>
+<td style="text-align:right;">
+0.091
+</td>
+<td style="text-align:right;">
+-2.401
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+79.933
+</td>
+<td style="text-align:right;">
+2578
+</td>
+<td style="text-align:right;">
+378
+</td>
+<td style="text-align:right;">
+0.147
+</td>
+<td style="text-align:right;">
+0.172
+</td>
+<td style="text-align:right;">
+-1.761
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+4
+</td>
+<td style="text-align:right;">
+80.051
+</td>
+<td style="text-align:right;">
+3934
+</td>
+<td style="text-align:right;">
+598
+</td>
+<td style="text-align:right;">
+0.152
+</td>
+<td style="text-align:right;">
+0.179
+</td>
+<td style="text-align:right;">
+-1.719
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+5
+</td>
+<td style="text-align:right;">
+78.902
+</td>
+<td style="text-align:right;">
+1585
+</td>
+<td style="text-align:right;">
+310
+</td>
+<td style="text-align:right;">
+0.196
+</td>
+<td style="text-align:right;">
+0.243
+</td>
+<td style="text-align:right;">
+-1.414
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+6
+</td>
+<td style="text-align:right;">
+78.322
+</td>
+<td style="text-align:right;">
+1532
+</td>
+<td style="text-align:right;">
+357
+</td>
+<td style="text-align:right;">
+0.233
+</td>
+<td style="text-align:right;">
+0.304
+</td>
+<td style="text-align:right;">
+-1.191
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+7
+</td>
+<td style="text-align:right;">
+77.354
+</td>
+<td style="text-align:right;">
+390
+</td>
+<td style="text-align:right;">
+104
+</td>
+<td style="text-align:right;">
+0.267
+</td>
+<td style="text-align:right;">
+0.364
+</td>
+<td style="text-align:right;">
+-1.012
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+8
+</td>
+<td style="text-align:right;">
+75.410
+</td>
+<td style="text-align:right;">
+288
+</td>
+<td style="text-align:right;">
+92
+</td>
+<td style="text-align:right;">
+0.319
+</td>
+<td style="text-align:right;">
+0.469
+</td>
+<td style="text-align:right;">
+-0.756
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+9
+</td>
+<td style="text-align:right;">
+72.976
+</td>
+<td style="text-align:right;">
+124
+</td>
+<td style="text-align:right;">
+47
+</td>
+<td style="text-align:right;">
+0.379
+</td>
+<td style="text-align:right;">
+0.610
+</td>
+<td style="text-align:right;">
+-0.494
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+10
+</td>
+<td style="text-align:right;">
+71.750
+</td>
+<td style="text-align:right;">
+28
+</td>
+<td style="text-align:right;">
+9
+</td>
+<td style="text-align:right;">
+0.321
+</td>
+<td style="text-align:right;">
+0.474
+</td>
+<td style="text-align:right;">
+-0.747
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+11
+</td>
+<td style="text-align:right;">
+71.950
+</td>
+<td style="text-align:right;">
+20
+</td>
+<td style="text-align:right;">
+7
+</td>
+<td style="text-align:right;">
+0.350
+</td>
+<td style="text-align:right;">
+0.538
+</td>
+<td style="text-align:right;">
+-0.619
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+12
+</td>
+<td style="text-align:right;">
+82.500
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+0.000
+</td>
+<td style="text-align:right;">
+0.000
+</td>
+<td style="text-align:right;">
+-Inf
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+<a href="appendices.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+<a href="AppendixB.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+    </div>
+  </div>
+<script src="assets/gitbook-2.6.7/js/app.min.js"></script>
+<script src="assets/gitbook-2.6.7/js/clipboard.min.js"></script>
+<script src="assets/gitbook-2.6.7/js/plugin-search.js"></script>
+<script src="assets/gitbook-2.6.7/js/plugin-sharing.js"></script>
+<script src="assets/gitbook-2.6.7/js/plugin-fontsettings.js"></script>
+<script src="assets/gitbook-2.6.7/js/plugin-bookdown.js"></script>
+<script src="assets/gitbook-2.6.7/js/jquery.highlight.js"></script>
+<script src="assets/gitbook-2.6.7/js/plugin-clipboard.js"></script>
+<script>
+gitbook.require(["gitbook"], function(gitbook) {
+gitbook.start({
+"sharing": {
+"github": false,
+"facebook": true,
+"twitter": true,
+"linkedin": false,
+"weibo": false,
+"instapaper": false,
+"vk": false,
+"whatsapp": false,
+"all": ["facebook", "twitter", "linkedin", "weibo", "instapaper"]
+},
+"fontsettings": {
+"theme": "white",
+"family": "sans",
+"size": 2
+},
+"edit": {
+"link": null,
+"text": null
+},
+"history": {
+"link": null,
+"text": null
+},
+"view": {
+"link": null,
+"text": null
+},
+"download": null,
+"search": false,
+"toc": {
+"collapse": "subsection"
+},
+"toolbar": {
+"position": "static"
+}
+});
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    var src = "true";
+    if (src === "" || src === "true") src = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/latest.js?config=TeX-MML-AM_CHTML";
+    if (location.protocol !== "file:")
+      if (/^https?:/.test(src))
+        src = src.replace(/^https?:/, '');
+    script.src = src;
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+</body>
+
+</html>
