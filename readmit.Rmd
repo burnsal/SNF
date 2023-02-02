@@ -3,15 +3,16 @@ title: "Readmission Analysis"
 author: "Amira Burns"
 date: "`r Sys.Date()`"
 output:
-  bookdown::pdf_book:
-    keep_tex: true
   bookdown::gitbook:
     lib_dir: assets
     output_dir: _book
+    clean: TRUE
     split_by: section
     config:
       toolbar:
         position: static
+  bookdown::pdf_book:
+    keep_tex: true
   bookdown::html_book:
     css: toc.css
 documentclass: book

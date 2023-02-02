@@ -4,18 +4,18 @@
 
   <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>4.3 HOSPITAL | Readmission Analysis</title>
-  <meta name="description" content="4.3 HOSPITAL | Readmission Analysis" />
+  <title>6.6 Appendix F: HOSPITAL Model Residual Diagnostics | Readmission Analysis</title>
+  <meta name="description" content="6.6 Appendix F: HOSPITAL Model Residual Diagnostics | Readmission Analysis" />
   <meta name="generator" content="bookdown 0.32 and GitBook 2.6.7" />
 
-  <meta property="og:title" content="4.3 HOSPITAL | Readmission Analysis" />
+  <meta property="og:title" content="6.6 Appendix F: HOSPITAL Model Residual Diagnostics | Readmission Analysis" />
   <meta property="og:type" content="book" />
   
   
   
 
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="4.3 HOSPITAL | Readmission Analysis" />
+  <meta name="twitter:title" content="6.6 Appendix F: HOSPITAL Model Residual Diagnostics | Readmission Analysis" />
   
   
   
@@ -30,8 +30,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black" />
   
   
-<link rel="prev" href="lace.html"/>
-<link rel="next" href="discussion-and-conclusions.html"/>
+<link rel="prev" href="AppendixE.html"/>
+
 <script src="assets/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.4.6/dist/fuse.min.js"></script>
 <link href="assets/gitbook-2.6.7/css/style.css" rel="stylesheet" />
@@ -106,16 +106,33 @@
           <div class="page-inner">
 
             <section class="normal" id="section-">
-<div id="hospital" class="section level2 hasAnchor" number="4.3">
-<h2><span class="header-section-number">4.3</span> HOSPITAL<a href="hospital.html#hospital" class="anchor-section" aria-label="Anchor link to header"></a></h2>
-<p>The base model for readmission against HOSPITAL can be written as:</p>
-<p><span class="math display">\[
-\begin{aligned}
-log(\frac{p_{HOS_i}}{1-p_{HOS_{i}}}) &amp;= \beta_0 + \beta_1  HOS_i \\
-p_{HOS_{i}} &amp;= \frac{e^{\beta_0 + \beta_1HOS_{i}}}{1 + e^{\beta_0 + \beta_1HOS_{i}}}
-\end{aligned}
-\]</span><br />
-where <span class="math inline">\(i\ \epsilon\ [0, 11]\)</span></p>
+<div id="AppendixF" class="section level2 hasAnchor" number="6.6">
+<h2><span class="header-section-number">6.6</span> Appendix F: HOSPITAL Model Residual Diagnostics<a href="AppendixF.html#AppendixF" class="anchor-section" aria-label="Anchor link to header"></a></h2>
+<pre><code>## 
+## Call:
+## glm(formula = cbind(n.Readmit, n - n.Readmit) ~ HOSPITAL, family = binomial(link = &quot;logit&quot;), 
+##     data = readmit_hos_cut)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -2.4851  -1.4034  -0.4645  -0.1126   3.4206  
+## 
+## Coefficients:
+##             Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept) -2.70804    0.06081  -44.53   &lt;2e-16 ***
+## HOSPITAL     0.25061    0.01294   19.37   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 404.380  on 11  degrees of freedom
+## Residual deviance:  26.824  on 10  degrees of freedom
+## AIC: 101.73
+## 
+## Number of Fisher Scoring iterations: 4</code></pre>
+<p><img src="readmit_files/figure-html/hos_base_diag-1.png" width="672" /></p>
+<hr />
 </div>
 <!-- </div> -->
             </section>
@@ -123,8 +140,8 @@ where <span class="math inline">\(i\ \epsilon\ [0, 11]\)</span></p>
           </div>
         </div>
       </div>
-<a href="lace.html" class="navigation navigation-prev " aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
-<a href="discussion-and-conclusions.html" class="navigation navigation-next " aria-label="Next page"><i class="fa fa-angle-right"></i></a>
+<a href="AppendixE.html" class="navigation navigation-prev navigation-unique" aria-label="Previous page"><i class="fa fa-angle-left"></i></a>
+
     </div>
   </div>
 <script src="assets/gitbook-2.6.7/js/app.min.js"></script>
