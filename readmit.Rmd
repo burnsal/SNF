@@ -3,11 +3,11 @@ title: "Readmission Analysis"
 author: "Amira Burns"
 date: "`r Sys.Date()`"
 output:
-  bookdown::pdf_document2:
-    keep_tex: true
   bookdown::html_document2: default
   bookdown::word_document2:
     toc: true
+  bookdown::pdf_document2:
+    keep_tex: true
 ---
 
 ```{r setup, include=FALSE}
