@@ -3,19 +3,11 @@ title: "Readmission Analysis"
 author: "Amira Burns"
 date: "`r Sys.Date()`"
 output:
-  bookdown::gitbook:
-    lib_dir: assets
-    output_dir: _book
-    clean: TRUE
-    split_by: section
-    config:
-      toolbar:
-        position: static
-  bookdown::pdf_book:
+  bookdown::html_document2: default
+  bookdown::pdf_document2:
     keep_tex: true
-  bookdown::html_book:
-    css: toc.css
-documentclass: book
+  bookdown::word_document2:
+    toc: true
 ---
 
 ```{r setup, include=FALSE}
@@ -260,7 +252,9 @@ ggplot(readmit_plot, aes(x = Value, y = logit.Readmit, shape = Score, label = Va
   facet_wrap(vars(Score)) + 
   ggtitle("Empirical Logits by Acuity Score")
 ```
-A linear association between CCI score and empirical logit is not clear, especially considering score values greater than 8. A linear association between HOSPITAL score and empirical logit is quite pronounced; while the linear association between LACE score and empirical logit is also quite strong, we can observe two potential outliers for LACE score values of 3 and 18.  
+  
+  
+    A linear association between CCI score and empirical logit is not clear, especially considering score values greater than 8. A linear association between HOSPITAL score and empirical logit is quite pronounced; while the linear association between LACE score and empirical logit is also quite strong, we can observe two potential outliers for LACE score values of 3 and 18.  
   
 We also want to consider whether or not probability of readmission changes over time, with respect to acuity score. Various plots examining readmission by score over year can be found in [Appendix B](#AppendixB); no interaction between score and year is apparent.  
 ```{r readmit_yr}
@@ -470,6 +464,8 @@ ggplot(readmit_cci_cut, aes(CCI, p.Readmit)) +
   ggtitle("Probability of Readmission by CCI: Raw data + fitted model")
 
 ```
+  
+      
 *Note: Add manual legend! The line is the fitted model line, and the blue squares are the fitted values. The red circles are the empirical proportions of readmissions for each value of CCI. The black blobs are the raw data for each record. Maybe remove this last piece, since it doesn't add much to the visual story*  
 
 Full model diagnostics can be reviewed in [Appendix D](#AppendixD). No CCI + covariate models need to be fitted since we find no evidence that changes in CCI score are associated with changes in readmission risk.  
