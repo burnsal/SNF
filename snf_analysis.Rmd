@@ -25,6 +25,8 @@ library(rstatix)
 library(gridExtra) # make and arrange tables
 library(gtable) 
 library(kableExtra)
+library(nnet) # multinomial model fitting
+library(lme4) # multilevel model fitting
 ```
 
 ## Introduction  
@@ -42,7 +44,7 @@ Rehospitalization of skilled nursing facility (SNF) residents remains a pertinen
 ### Load and review the data  
 
 ```{r load}
-snf_data <- read_xlsx("SNF_CODED_CALCULATED_SCORES_04042022.xlsx",
+snf_data <- read_xlsx("/data/SNF_CODED_CALCULATED_SCORES_04042022.xlsx",
                       sheet = "CODED DATA AND CALCULATIONS")
 ```
   
@@ -99,17 +101,22 @@ snf_data <- snf_data %>%
             AidsHIV = factor(`AIDS/HIV`),
             CCI = `CALCULATED CCI SCORE`,
             LACE = `CALCULATED LACE SCORE`,
-            HOSPITAL = `CALCULATED HOSPITAL SCORE`) %>%
-  mutate(StayDuration = DischargeDate - CurrentAdmit,
+            HOSPITAL = `CALCULATED HOSPITAL SCORE`,
+            Readmit30 = `READMISSION <30DAYS`) %>%
+  mutate(StayDurationDays = as.numeric((DischargeDate - CurrentAdmit)+1),
          DtmDuration = DischargeDtm - AdmitDtm)
-
-# create binary for readmission to hosp w/in 30 days
 ```  
-
 
   
 ```{r standardize}
+# Exclude records before 2014 due to reporting changes
 snf_data <- snf_data %>% filter(Year > 2013)
+
+# Create new column for whether or not record is a readmission
+snf_data <- snf_data %>%
+  mutate(Readmit30 = ifelse(Readmit30 == "N/A", "O", Readmit30)) %>%
+  rename(Readmit = Readmit30)
+
 
 # Standardize values of Race, Insurance, Liver Disease, Diabetes
 snf_data <- snf_data %>%
@@ -124,7 +131,11 @@ snf_data <- snf_data %>%
          LiverDis = ordered(ifelse(ModSevLiverDis == 3, 3,
                                    ifelse(MildLiverDis == 1, 1, 0))),
          Diabetes = ordered(ifelse(DiabetesWChrCom == 2, 2,
-                                   ifelse(DiabetesWOChrCom == 1, 1, 0))))
+                                   ifelse(DiabetesWOChrCom == 1, 1, 0))),
+         Readmit = as.factor(Readmit))
+
+# relevel Readmit factor
+snf_data$Readmit <- relevel(snf_data$Readmit, ref = "O")
 ```
   
   
@@ -154,8 +165,8 @@ snf_data <- snf_data %>% na.omit()
   
 ```{r hist1}
 score_piv <- snf_data %>% 
-  dplyr::select(SternClientID, Year, CCI, LACE, HOSPITAL) %>%
-  pivot_longer(!c(SternClientID, Year), names_to = "score", values_to = "val")
+  dplyr::select(SternClientID, Year, CCI, LACE, HOSPITAL, Readmit) %>%
+  pivot_longer(!c(SternClientID, Year, Readmit), names_to = "score", values_to = "val")
 
 ggplot(score_piv, aes(x = val, fill = score)) + 
   geom_histogram(bins = 20, alpha = 0.5) + 
@@ -676,7 +687,7 @@ snf_data_a <- snf_data %>%
   filter(Gender != "Unspecified") %>%
   mutate(Race_Eth = fct_recode(Race_Eth, "Other/Multiracial" = "Native Amer/Alaskan"),
          Insurance = as.factor(InsurancePlanCleaned))
-  
+snf_data_a$Gender <- droplevels(snf_data_a$Gender)
 ```
 
 ## ANOVA  
@@ -1050,6 +1061,278 @@ two-way interactions to explore include `Year`:`Race/Ethnicity`, `PatientAge`:`I
 three-way interaction between `PatientAge`:`Race/Ethnicity`:`Insurance`.  
 
 
+
+  
+***    
+  
+## Readmission Analysis
+Explore any patterns related to readmission status. These records are classified as an original admission ("O"), readmission within 30 days of discharge after original hospital stay ("Y"), or readmission outside the 30-day window after original discharge ("N").
+
+```{r readmit_table}
+snf_tbl <- snf_data_a %>%
+  select(c(Year, PatientAge, Gender, Race_Eth, Insurance, CCI, LACE, HOSPITAL, Readmit)) %>%
+  group_by(Year, Gender, Race_Eth, Insurance, Readmit) %>%
+  summarise(n = n(), meanAge = mean(PatientAge), 
+            meanCCI = mean(CCI), meanLACE = mean(LACE), meanHOS = mean(HOSPITAL)) %>%
+  pivot_wider(names_from = c(Readmit), values_from = c(n, meanAge, meanCCI, meanLACE, meanHOS))
+```
+
+When accounting for all demographics, many sub-group samples are size N = 0. In order to preserve differences between type of admission, we can aggregate over Race/Ethnicity and note this topic as worthy of study with a future dataset.  
+  
+```{r readmit_table_agg}
+snf_tbl_nore <- snf_data_a %>%
+  select(c(Year, PatientAge, Gender, Insurance, CCI, LACE, HOSPITAL, Readmit)) %>%
+  group_by(Year, Gender, Insurance, Readmit) %>%
+  summarise(n = n(), meanAge = mean(PatientAge), 
+            meanCCI = mean(CCI), meanLACE = mean(LACE), meanHOS = mean(HOSPITAL)) %>%
+  pivot_wider(names_from = c(Readmit), values_from = c(n, meanAge, meanCCI, meanLACE, meanHOS))
+```
+
+The only group with N=0 sample size is Men readmitted outside 30 days without Medicare/Medicaid in 2017. 
+
+Let's look at visualizations to explore any patterns between readmission status and calculated scores or demographic factors. 
+
+```{r score_piv_full}
+score_piv_full <- snf_data_a %>% 
+  dplyr::select(SternClientID, Year, PatientAge, Gender, Race_Eth, Insurance, CCI, LACE, HOSPITAL, Readmit) %>%
+  pivot_longer(!c(SternClientID, Year, PatientAge, Gender, Race_Eth, Insurance, Readmit), names_to = "score", values_to = "val") 
+```
+
+
+```{r readmit_eda}
+# Readmission by score, aggregated
+ggplot(score_piv_full, aes(x = Readmit, y = val, fill = Readmit)) + 
+  geom_boxplot() + 
+  labs(x = "Readmit Status", y = "Score") + 
+  theme_minimal() + 
+  facet_wrap(vars(score)) + 
+  ggtitle("Boxplots of Calculated Score by (Re)admission Status")
+
+```
+When aggregating across all demographics, there are no visually striking differences in readmission status across score. 
+
+```{r filter_readmits}
+# filter by score
+score_piv_CCI <- score_piv_full %>%
+  filter(score == 'CCI') %>%
+  select(!score)
+
+score_piv_LACE <- score_piv_full %>%
+  filter(score == 'LACE') %>%
+  select(!score)
+
+score_piv_HOS <- score_piv_full %>%
+  filter(score == 'HOSPITAL') %>%
+  select(!score)
+
+```
+
+```{r full_boxplots}
+# boxplots by Year
+ggplot(score_piv_CCI, aes(x = as.factor(Year), y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Year", y = "Score") + 
+  ggtitle("CCI Score by (Re)Admission Status, Year")
+
+ggplot(score_piv_LACE, aes(x = as.factor(Year), y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Year", y = "Score") + 
+  ggtitle("LACE Score by (Re)Admission Status, Year")
+
+ggplot(score_piv_HOS, aes(x = as.factor(Year), y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Year", y = "Score") + 
+  ggtitle("HOSPITAL Score by (Re)Admission Status, Year")
+
+# boxplots by gender
+ggplot(score_piv_CCI, aes(x = Gender, y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Gender", y = "Score") + 
+  ggtitle("CCI Score by (Re)Admission Status, Gender")
+
+ggplot(score_piv_LACE, aes(x = Gender, y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Gender", y = "Score") + 
+  ggtitle("LACE Score by (Re)Admission Status, Gender")
+
+ggplot(score_piv_HOS, aes(x = Gender, y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Gender", y = "Score") + 
+  ggtitle("HOSPITAL Score by (Re)Admission Status, Gender")
+
+# boxplots by age
+ggplot(score_piv_CCI, aes(x = PatientAge, y = val, fill = Readmit)) + 
+  geom_violin(orientation = "y", draw_quantiles = c(0.25, 0.5, 0.75)) + theme_minimal() +
+  labs(x = "Age", y = "Score") + 
+  facet_grid(vars(Readmit)) + 
+  ggtitle("CCI Score by (Re)Admission Status, Age")
+
+ggplot(score_piv_LACE, aes(x = PatientAge, y = val, fill = Readmit)) + 
+  geom_violin(orientation = "y", draw_quantiles = c(0.25, 0.5, 0.75)) + theme_minimal() +
+  labs(x = "Age", y = "Score") + 
+  facet_grid(vars(Readmit)) + 
+  ggtitle("LACE Score by (Re)Admission Status, Age")
+
+ggplot(score_piv_HOS, aes(x = PatientAge, y = val, fill = Readmit)) + 
+  geom_violin(orientation = "y", draw_quantiles = c(0.25, 0.5, 0.75)) + theme_minimal() +
+  labs(x = "Age", y = "Score") + 
+  facet_grid(vars(Readmit)) + 
+  ggtitle("HOSPITAL Score by (Re)Admission Status, Age")
+
+# boxplots by insurance
+ggplot(score_piv_CCI, aes(x = Insurance, y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Insurance Status", y = "Score") + 
+  ggtitle("CCI Score by (Re)Admission Status, Insurance Status")
+
+ggplot(score_piv_LACE, aes(x = Insurance, y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Insurance Status", y = "Score") + 
+  ggtitle("LACE Score by (Re)Admission Status, Insurance Status")
+
+ggplot(score_piv_HOS, aes(x = Insurance, y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Insurance Status", y = "Score") + 
+  ggtitle("HOSPITAL Score by (Re)Admission Status, Insurance Status")
+```
+
+
+
+
+### Model Fitting
+Check for correlation among scores:  
+```{r cors}
+scores <- snf_data_a %>% select(CCI, LACE, HOSPITAL)
+
+cor(scores, method = "pearson")
+cor(scores, method = "kendall")
+cor(scores, method = "spearman")
+
+```
+
+  
+Model fitting starts with just a baseline model without any predictors. Since the response `Readmit` has three categories, model class of choice is a multinomial log-linear model.  
+```{r mod_fits}
+
+mod0 <- nnet::multinom(Readmit ~ 1, data = snf_data_a)
+mod_score <- nnet::multinom(Readmit ~ CCI + LACE + HOSPITAL, data = snf_data_a)
+
+mod_yr <- nnet::multinom(Readmit ~ Year, data = snf_data_a)
+mod_yr_score <- nnet::multinom(Readmit ~ Year + CCI + LACE + HOSPITAL, data = snf_data_a)
+
+mod_age <- nnet::multinom(Readmit ~ PatientAge, data = snf_data_a)
+mod_age_score <- nnet::multinom(Readmit ~ PatientAge + CCI + LACE + HOSPITAL, data = snf_data_a)
+
+mod_gen <- nnet::multinom(Readmit ~ Gender, data = snf_data_a)
+mod_gen_score <- nnet::multinom(Readmit ~ Gender + CCI + LACE + HOSPITAL, data = snf_data_a) 
+
+mod_ins <- nnet::multinom(Readmit ~ Insurance, data = snf_data_a)
+mod_ins_score <- nnet::multinom(Readmit ~ Insurance + CCI + LACE + HOSPITAL, data = snf_data_a)
+```
+
+Goodness of Fit Test
+```{r deviance}
+# Null mod against Readmit ~ Year
+1 - pchisq(mod0$deviance - mod_yr$deviance, df = 2)
+1 - pchisq(mod0$deviance - mod_score$deviance, df = 6)
+1 - pchisq(mod_score$deviance - mod_yr_score$deviance, df = 2)
+```  
+
+
+We may consider there to be no meaningful clinical difference between an original admission and a readmission outside 30 days. Consequently, combine the "O" and "N" factor levels of Readmit and treat the response as a binary variable. The appropriate model class is logistic regression.     
+
+```{r readmitlevels}
+snf_data_b <- snf_data_a %>%
+  mutate(Readmit = as.character(Readmit)) %>%
+  mutate(Readmit = ifelse(Readmit == "O", "N", Readmit)) %>%
+  mutate(Readmit = as.factor(Readmit))
+
+snf_tbl_b <- snf_data_b %>%
+  select(c(Year, PatientAge, Gender, Insurance, CCI, LACE, HOSPITAL, Readmit)) %>%
+  group_by(Year, Gender, Insurance, Readmit) %>%
+  summarise(n = n(), meanAge = mean(PatientAge), 
+            meanCCI = mean(CCI), meanLACE = mean(LACE), meanHOS = mean(HOSPITAL)) %>%
+  pivot_wider(names_from = c(Readmit), values_from = c(n, meanAge, meanCCI, meanLACE, meanHOS))
+```
+  
+```{r logmods}  
+fit0 <- glm(Readmit ~ 1, family = binomial(link = "logit"), data = snf_data_b)
+d0 <- broom::glance(fit0) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+fit_score <- glm(Readmit ~ CCI + LACE + HOSPITAL, family = binomial(link = "logit"), data = snf_data_b)
+dscore <- broom::glance(fit_score) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+
+fit_yr <- glm(Readmit ~ Year, family = binomial(link = "logit"), data = snf_data_b)
+dyr <- broom::glance(fit_yr) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+fit_yr_score <- glm(Readmit ~ Year + CCI + LACE + HOSPITAL, family = binomial(link = "logit"), data = snf_data_b)
+dyrsc <- broom::glance(fit_yr_score) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+
+fit_age <- glm(Readmit ~ PatientAge, family = binomial(link = "logit"), data = snf_data_b)
+da <- broom::glance(fit_age) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+fit_age_score <- glm(Readmit ~ PatientAge + CCI + LACE + HOSPITAL, family = binomial(link = "logit"), data = snf_data_b)
+das <- broom::glance(fit_age_score) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+
+fit_gen <- glm(Readmit ~ Gender, family = binomial(link = "logit"), data = snf_data_b)
+dg <- broom::glance(fit_gen) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+fit_gen_score <- glm(Readmit ~ Gender + CCI + LACE + HOSPITAL, family = binomial(link = "logit"), data = snf_data_b)
+dgsc <- broom::glance(fit_gen_score) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+
+fit_ins <- glm(Readmit ~ Insurance, family = binomial(link = "logit"), data = snf_data_b)
+di <- broom::glance(fit_ins) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+fit_ins_score <- glm(Readmit ~ Insurance + CCI + LACE + HOSPITAL, family = binomial(link = "logit"), data = snf_data_b)
+disc <- broom::glance(fit_ins_score) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+
+fit_add <- glm(Readmit ~ CCI + LACE + HOSPITAL + Year + PatientAge + 
+                  Gender  + Insurance, family = binomial(link = "logit"), data = snf_data_b)
+dadd <- broom::glance(fit_add) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+fit_full <- glm(Readmit ~ CCI * LACE * HOSPITAL * Year * PatientAge * 
+                  Gender * Insurance, family = binomial(link = "logit"), data = snf_data_b)
+dfull <- broom::glance(fit_full) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+
+
+```
+
+Model Selection: perform drop-in-deviance tests to compare nested models  
+```{r mod_select}
+mod_tbl <- rbind(d0, dscore, dyr, dgsc, da, das,
+                 dg, dgsc, di, disc, dadd, dfull)
+mod_tbl$Model <- c("Null Model", "Scores", "Year", "Scores + Year", "Age", "Scores + Age", "Gender", 
+                       "Scores + Gender", "Insurance", "Scores + Insurance", "Additive Model", "Saturated Model")
+mod_tbl <- mod_tbl %>%
+  dplyr::relocate(Model)
+mod_tbl
+
+# Drop-in-deviance test to compare saturated model to additive model
+anova(fit_add, fit_full, test = "Chisq")
+
+# Goodness of fit tests for both models
+pchisq(fit_full$deviance, fit_full$df.residual, lower.tail = FALSE)
+pchisq(fit_add$deviance, fit_add$df.residual, lower.tail = FALSE)
+
+
+```  
+
+Despite the drop-in-deviance test determining that the saturated model better fits the data, the additive model has a lower AIC. The additional benefit of parsimony (8 parameters in the additive model instead of 128 parameters in the full model) allows us to proceed to model diagnostics for the additive model.  
+  
+```{r mod_diag}
+summary(fit_add)
+anova(fit_gen_score, fit_add, test = "Chisq")
+```
+
+Based on adjusted p-values, compare the additive model to the model including just scores and gender. The simpler model has higher AIC, and the drop-in-deviance test favors the larger model, so we'll stick with the additive model. The model can be written as:  
+
+$$
+\begin{aligned}
+log(\frac{p_i}{1-p_i}) &= \beta_0 + \beta_1*CCI_i + \beta_2 * LACE_i + \beta_3 * HOSPITAL_i + \beta_4 * Year_i + \beta_5* Age_i + \beta_6 * Gender_{Male} + \beta_7 * Insurance_{No Medicare/Medicaid} \\
+&= 14.028 - 0.057*CCI_i + 0.094 * LACE_i + 0.202 * HOSPITAL_i - 0.009 * Year_i + 0.005* Age_i + 0.294 * Gender_{Male} - 0.141 * Insurance_{No Medicare/Medicaid}
+\end{aligned}
+$$
+
+where $p_i$ is the probability that a given record in the dataset is a readmission within 30 days.
+
+```{r fit_diag}
+
+
+```
 
   
 ***    
