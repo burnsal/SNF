@@ -3,9 +3,9 @@ title: "Readmission Analysis"
 author: "Amira Burns"
 date: "`r Sys.Date()`"
 output:
-  bookdown::html_document2: default
   bookdown::pdf_document2:
     keep_tex: true
+  bookdown::html_document2: default
   bookdown::word_document2:
     toc: true
 ---
@@ -550,6 +550,10 @@ $$p_{HOSP_i} = \frac{e^{-2.708 + 0.251*HOSP_i}}{1+e^{-2.708 + 0.251*HOSP_i}}$$
 Full model diagnostics are available in [Appendix F](#AppendixF)  
   
 *Note need to plot base model, fit models with covariates, and perform model selection*    
+  
+  
+## Additional Model Fitting  
+  - Explore patterns within the <30 day readmissions for changes in scores. Model LOS against acuity scores
 
 # Discussion and Conclusions  
   
@@ -560,7 +564,7 @@ Full model diagnostics are available in [Appendix F](#AppendixF)
     + the need to introduce covariates into the models. These covariates may be those already identified, or covariates in the dataset not yet considered, or factors not captured in the dataset
     + the need to pursue alternative methods to confirm these results. MC simulations would be my next idea.  
   - The conclusion may be that readmission rates are holding steady despite changes in acuity scores. What clinical impacts can come from this conclusion?  
-  - Is there consideration in this analysis of the ANOVAs previously done to examination associations between calculated scores and demographic factors? If so, how?  
+  - Is there consideration in this analysis of the ANOVAs previously done to examination associations between calculated scores and demographic factors? If so, how?
   
 
 ***
@@ -629,24 +633,21 @@ readmit_cci_gen %>%
   kbl(caption = "Readmission Empirical Statistics by CCI Score, Gender", digits=3,
       col.names = c("CCI Score", "Gender", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_minimal(full_width = F) %>%
-  column_spec(1, bold=T) %>%
-  collapse_rows(columns=0:1, valign="top")
+  column_spec(1, bold=T)
 
 readmit_cci_re %>% 
   select(!Demo) %>%
   kbl(caption = "Readmission Empirical Statistics by CCI Score, Race/Ethnicity", digits=3,
       col.names = c("CCI Score", "Race/Ethnicity", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_minimal(full_width = F) %>%
-  column_spec(1, bold=T) %>%
-  collapse_rows(columns=0:1, valign="top")
+  column_spec(1, bold=T) 
 
 readmit_cci_ins %>% 
   select(!Demo) %>%
   kbl(caption = "Readmission Empirical Statistics by CCI Score, Insurance", digits=3,
       col.names = c("CCI Score", "Insurance", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_minimal(full_width = F) %>%
-  column_spec(1, bold=T) %>%
-  collapse_rows(columns=0:1, valign="top")
+  column_spec(1, bold=T) 
 
 cci_gen_plot <- readmit_cci_gen %>% na_if(-Inf)
 ggplot(cci_gen_plot, aes(x = CCI, y=logit.Readmit, shape=Value, label=CCI)) + 
@@ -676,24 +677,22 @@ readmit_lace_gen %>%
   kbl(caption = "Readmission Empirical Statistics by LACE Score, Gender", digits=3,
       col.names = c("LACE Score", "Gender", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_minimal(full_width = F) %>%
-  column_spec(1, bold=T) %>%
-  collapse_rows(columns=0:1, valign="top")
+  column_spec(1, bold=T) 
 
 readmit_lace_re %>% 
   select(!Demo) %>%
   kbl(caption = "Readmission Empirical Statistics by LACE Score, Race/Ethnicity", digits=3,
       col.names = c("LACE Score", "Race/Ethnicity", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_minimal(full_width = F) %>%
-  column_spec(1, bold=T) %>%
-  collapse_rows(columns=0:1, valign="top")
+  column_spec(1, bold=T) 
 
 readmit_lace_ins %>% 
   select(!Demo) %>%
   kbl(caption = "Readmission Empirical Statistics by LACE Score, Insurance", digits=3,
       col.names = c("LACE Score", "Insurance", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_minimal(full_width = F) %>%
-  column_spec(1, bold=T) %>%
-  collapse_rows(columns=0:1, valign="top")
+  column_spec(1, bold=T) 
+
 
 lace_gen_plot <- readmit_lace_gen %>% na_if(-Inf)
 ggplot(lace_gen_plot, aes(x = LACE, y=logit.Readmit, shape=Value, label=LACE)) + 
@@ -724,24 +723,21 @@ readmit_hos_gen %>%
   kbl(caption = "Readmission Empirical Statistics by HOSPITAL Score, Gender", digits=3,
       col.names = c("HOSP Score", "Gender", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_minimal(full_width = F) %>%
-  column_spec(1, bold=T) %>%
-  collapse_rows(columns=0:1, valign="top")
+  column_spec(1, bold=T) 
 
 readmit_hos_re %>% 
   select(!Demo) %>%
   kbl(caption = "Readmission Empirical Statistics by HOSPITAL Score, Race/Ethnicity", digits=3,
       col.names = c("HOSP Score", "Race/Ethnicity", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_minimal(full_width = F) %>%
-  column_spec(1, bold=T) %>%
-  collapse_rows(columns=0:1, valign="top")
+  column_spec(1, bold=T) 
 
 readmit_hos_ins %>% 
   select(!Demo) %>%
   kbl(caption = "Readmission Empirical Statistics by HOSPITAL Score, Insurance", digits=3,
       col.names = c("HOSP Score", "Insurance", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_minimal(full_width = F) %>%
-  column_spec(1, bold=T) %>%
-  collapse_rows(columns=0:1, valign="top")
+  column_spec(1, bold=T)
 
 hos_gen_plot <- readmit_hos_gen %>% na_if(-Inf)
 ggplot(hos_gen_plot, aes(x = HOSPITAL, y=logit.Readmit, shape=Value, label=HOSPITAL)) + 
