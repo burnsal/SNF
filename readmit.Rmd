@@ -254,7 +254,7 @@ ggplot(readmit_plot, aes(x = Value, y = logit.Readmit, shape = Score, label = Va
 ```
   
   
-    A linear association between CCI score and empirical logit is not clear, especially considering score values greater than 8. A linear association between HOSPITAL score and empirical logit is quite pronounced; while the linear association between LACE score and empirical logit is also quite strong, we can observe two potential outliers for LACE score values of 3 and 18.  
+A linear association between CCI score and empirical logit is not clear, especially considering score values greater than 8. A linear association between HOSPITAL score and empirical logit is quite pronounced; while the linear association between LACE score and empirical logit is also quite strong, we can observe two potential outliers for LACE score values of 3 and 18.  
   
 We also want to consider whether or not probability of readmission changes over time, with respect to acuity score. Various plots examining readmission by score over year can be found in [Appendix B](#AppendixB); no interaction between score and year is apparent.  
 ```{r readmit_yr}
