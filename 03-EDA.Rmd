@@ -1,29 +1,58 @@
 # Exploratory Data Analysis
 
-Our primary research interest is whether or not the probability of readmission is associated with calculated score. We calculate the odds $\frac{p}{1-p}$ empirical log odds $log(\frac{p}{1-p})$ of readmissions associated with each level of each acuity score and visualize the potential associations, where $p$ is the probability that a record is of a readmission within 30 days. Summary tables for CCI, LACE, and HOSPITAL can be found in [Appendix A](#AppendixA): .
+Our primary research interest is whether or not the probability of readmission is associated with calculated score. We calculate the odds $\frac{p}{1-p}$ empirical log odds $log(\frac{p}{1-p})$ of readmissions associated with each level of each acuity score and visualize the potential associations, where $p$ is the probability that a record is of a readmission within 30 days. Summary tables for unaggregated CCI, LACE, and HOSPITAL scorescan be found in [Appendix A](#AppendixA): .
 
 ```{r readmit_CCI}
-readmit_cci <- snf_data_a %>%
+readmit_cci_org <- snf_data_a %>%
   group_by(CCI) %>%
   summarize(meanAge = mean(PatientAge), n=n(), 
             n.Readmit = sum(Readmit == "Y"),
             p.Readmit = sum(Readmit == "Y")/n,
             odds.Readmit = p.Readmit / (1 - p.Readmit),
             logit.Readmit = log(odds.Readmit))
+
+readmit_cci <- snf_data_a %>%
+  group_by(CCI) %>%
+  mutate(CCI = ifelse(CCI > 14, 14, CCI)) %>% 
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit))
+
+readmit_cci %>% 
+  kbl(caption = "Readmission Empirical Statistics by CCI Score", digits=3,
+      col.names = c("CCI Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_classic_2(full_width = F)
 ```
 
 ```{r readmit_LACE}
-readmit_lace <- snf_data_a %>%
+readmit_lace_org <- snf_data_a %>%
   group_by(LACE) %>%
   summarize(meanAge = mean(PatientAge), n=n(), 
             n.Readmit = sum(Readmit == "Y"),
             p.Readmit = sum(Readmit == "Y")/n,
             odds.Readmit = p.Readmit / (1 - p.Readmit),
             logit.Readmit = log(odds.Readmit))
+
+readmit_lace <- snf_data_a %>%
+  group_by(LACE) %>%
+  mutate(LACE = ifelse(LACE < 4, 4, 
+                       ifelse(LACE > 18, 18, LACE))) %>%
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit))
+
+readmit_lace %>% 
+  kbl(caption = "Readmission Empirical Statistics by LACE Score", digits=3,
+      col.names = c("LACE Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_classic_2(full_width = F)
 ```
 
 ```{r readmit_HOS}
-readmit_hos <- snf_data_a %>%
+readmit_hos_org <- snf_data_a %>%
   group_by(HOSPITAL) %>%
   summarize(meanAge = mean(PatientAge), n=n(), 
             n.Readmit = sum(Readmit == "Y"),
@@ -31,6 +60,19 @@ readmit_hos <- snf_data_a %>%
             odds.Readmit = p.Readmit / (1 - p.Readmit),
             logit.Readmit = log(odds.Readmit))
 
+readmit_hos <- snf_data_a %>%
+  group_by(HOSPITAL) %>%
+  mutate(HOSPITAL = ifelse(HOSPITAL > 11, 11, HOSPITAL)) %>% 
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit))
+
+readmit_hos %>% 
+  kbl(caption = "Readmission Empirical Statistics by HOSPITAL Score", digits=3,
+      col.names = c("HOS Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_classic_2(full_width = F)
 ```
 
 ```{r readmit_scores_plot}

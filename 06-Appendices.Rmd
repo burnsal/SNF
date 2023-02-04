@@ -3,19 +3,19 @@
 ## Appendix A: Summary Statistics Tables {#AppendixA}
 
 ```{r appendA}
-readmit_cci %>% 
+readmit_cci_org %>% 
   kbl(caption = "Readmission Empirical Statistics by CCI Score", digits=3,
       col.names = c("CCI Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_classic_2(full_width = F)
 
 
-readmit_lace %>% 
+readmit_lace_org %>% 
   kbl(caption = "Readmission Empirical Statistics by LACE Score", digits=3,
       col.names = c("LACE Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_classic_2(full_width = F)
 
 
-readmit_hos %>% 
+readmit_hos_org %>% 
   kbl(caption = "Readmission Empirical Statistics by HOSPITAL Score", digits=3,
       col.names = c("HOS Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_classic_2(full_width = F)
