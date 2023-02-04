@@ -1,0 +1,13 @@
+
+# Introduction  
+
+  - **Research Question**: Are higher acuity scores associated with greater probability of readmission to hospital from skilled nursing facility within 30 days of initial discharge? Acuity scores considered in this analysis are common clinical scores: CCI, LACE, HOSPITAL.
+  - **Alternative Hypothesis** $H_a$: Higher acuity scores are associated with higher probability of readmission.  
+  - **Null Hypothesis** $H_0$: Higher acuity scores are not associated with higher probability of readmission.  
+  - **Response variable**: binary Y/N if a record was for a readmission to an inpatient facility within 30 days of previous discharge. Three possible values are Original admission, Readmission outside 30 days, and Readmission within 30 days. Because financial penalties are assessed on readmissions within 30 days, the first two categories were combined into a **N** category.  
+  - **Observational units**: primary observational variables of interest are the three calculated scores assigned to individuals at each admission. Covariates of interest are:  
+    - Year: study period 2014-2019
+    - Gender: Male/Female  
+    - Race/Ethnicity: groups in the dataset are African American/Black, Asian, Caucasian/White, Hispanic/Latino, Other/Multiracial, and Unavailable/Unknown. Sample sizes were too small for some of these groups for us to include it in this analysis, but we note its association with each of the calculated scores and hvae interest in studying this topic further.  
+    - Insurance: Medicare-Medicaid/No Medicare-Medicaid as an indicator of socioeconomic status. 
+    

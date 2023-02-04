@@ -1,0 +1,163 @@
+
+  
+
+
+# Model Fitting
+
+Logistic regression is the appropriate model class for our binary response, where we want to model the probability that a record is for a readmission within 30 days. CCI values ranged 0-15; score values of 16, 17 were excluded due to small sample size (n = 1). LACE values ranged 2-19; no values were excluded. HOSPITAL values ranged 0-11; score values of 12 were excluded due to small sample size (n = 2).
+We start model fitting with a basic model for each calculated score.  
+
+
+```{r cut_df}
+readmit_cci_cut <- readmit_cci %>% filter(CCI < 16)
+readmit_hos_cut <- readmit_hos %>% filter(HOSPITAL < 12)
+```  
+  
+## CCI 
+
+The base model for readmission against CCI can be written as:  
+
+
+$$
+\begin{aligned}
+log(\frac{p_{CCI_i}}{1-p_{CCI_{i}}}) &= \beta_0 + \beta_1  CCI_i \\
+p_{CCI_{i}} &= \frac{e^{\beta_0 + \beta_1CCI_{i}}}{1 + e^{\beta_0 + \beta_1CCI_{i}}}
+\end{aligned}
+$$
+where $i\ \epsilon\ [0, 14]$
+  
+
+
+```{r cci_base}
+# Fit base model
+CCI_mod0 <- glm(cbind(n.Readmit, n-n.Readmit) ~ CCI, family = binomial(link="logit"), data = readmit_cci_cut)
+
+# get ests and confints
+cci_b0 <- CCI_mod0$coefficients[1]
+cci_b1 <- CCI_mod0$coefficients[2]
+cci_confint <- confint(CCI_mod0)
+cci_or <- exp(cci_b1)
+cci_or_confint <- exp(cci_confint[2,])
+```
+
+
+The estimated model for probability of readmission can be estimated as:  
+
+$$p_{CCI_i} = \frac{e^{-1.701 + 0.003*CCI_i}}{1+e^{-1.701 + 0.003*CCI_i}}$$
+
+
+```{r cci_modplot}
+x <- seq(0, 15, 0.1)
+y <- exp(cci_b0 + cci_b1*x) / (1 + (exp(cci_b0 + cci_b1*x)))
+cci_modline <- data.frame(x, y)
+
+cci_fits <- data.frame(CCI = seq(0, 15, 1),
+                       fit = fitted(CCI_mod0))
+
+cci_rawdat <- snf_data_a %>%
+  select(c(CCI, Readmit)) %>%
+  mutate(Readmit = as.numeric(Readmit) - 1) %>%
+  filter(CCI < 16)
+
+ggplot(readmit_cci_cut, aes(CCI, p.Readmit)) +
+  geom_point(col = 2, alpha = 0.7, size = 3) + 
+  geom_point(data = cci_fits, aes(x = CCI, y = fit), col = 4, alpha = 0.7, shape = 15, size = 3) + 
+  geom_jitter(data=cci_rawdat, aes(x = CCI, y=Readmit), width=0.1, height=0.05, alpha = 0.5, size = 1) + 
+  geom_line(data=cci_modline, aes(x=x, y=y), alpha = 0.5) + 
+  ylim(0, 1) + 
+  theme_minimal() + 
+  labs(x = "CCI Score", y = "Probability of Readmission") + 
+  ggtitle("Probability of Readmission by CCI: Raw data + fitted model")
+
+```
+  
+      
+*Note: Add manual legend! The line is the fitted model line, and the blue squares are the fitted values. The red circles are the empirical proportions of readmissions for each value of CCI. The black blobs are the raw data for each record. Maybe remove this last piece, since it doesn't add much to the visual story*  
+
+Full model diagnostics can be reviewed in [Appendix D](#AppendixD). No CCI + covariate models need to be fitted since we find no evidence that changes in CCI score are associated with changes in readmission risk.  
+  
+  
+## LACE  
+
+The base model for readmission against LACE can be written as:  
+  
+$$
+\begin{aligned}
+log(\frac{p_{LACE_i}}{1-p_{LACE_{i}}}) &= \beta_0 + \beta_1  LACE_i \\
+p_{LACE_{i}} &= \frac{e^{\beta_0 + \beta_1LACE_{i}}}{1 + e^{\beta_0 + \beta_1LACE_{i}}}
+\end{aligned}
+$$
+where $i\ \epsilon\ [2, 19]$  
+
+```{r lace_base}
+# Fit base model
+lace_mod0 <- glm(cbind(n.Readmit, n-n.Readmit) ~ LACE, 
+                 family = binomial(link="logit"), data = readmit_lace)
+
+# refit without LACE=11 see Appendix E diags
+readmit_lace_cut <- readmit_lace %>%
+  filter(LACE != 12)
+
+lace_mod1 <- glm(cbind(n.Readmit, n-n.Readmit) ~ LACE, 
+                 family = binomial(link="logit"), data = readmit_lace_cut)
+
+# refit with quasibinomial variation; see Appendix E  
+lace_mod2 <- glm(cbind(n.Readmit, n-n.Readmit) ~ LACE, 
+                 family = quasibinomial, data = readmit_lace)
+
+# get ests and confints
+lace_b0 <- lace_mod2$coefficients[1]
+lace_b1 <- lace_mod2$coefficients[2]
+lace_confint <- confint(lace_mod2)
+lace_or <- exp(lace_b1)
+lace_or_confint <- exp(lace_confint[2,])
+```
+
+The estimated odds for readmission based on LACE score is $e^{\hat{B_1}} = e^{0.155} = 1.167$, 95% CI: (1.117, 1.221); these results provide evidence that odds of readmission increases 11.7% - 22.1% for each increased value in LACE score. The confidence intervals given are calculated with an quasibinomial overdispersion parameter $\phi = 4.26$ to account for extra-binomial variation present in the data. See [Appendix E](#AppendixE) for full model diagnostics.
+
+The estimated model for probability of readmission can be estimated as:  
+
+$$p_{LACE_i} = \frac{e^{-3.521 + 0.155*LACE_i}}{1+e^{-3.521 + 0.155*LACE_i}}$$
+
+*Note: need to plot base model, fit models with covariates, and perform model selection*  
+  
+## HOSPITAL  
+  
+The base model for readmission against HOSPITAL can be written as:  
+  
+$$
+\begin{aligned}
+log(\frac{p_{HOS_i}}{1-p_{HOS_{i}}}) &= \beta_0 + \beta_1  HOS_i \\
+p_{HOS_{i}} &= \frac{e^{\beta_0 + \beta_1HOS_{i}}}{1 + e^{\beta_0 + \beta_1HOS_{i}}}
+\end{aligned}
+$$  
+where $i\ \epsilon\ [0, 11]$  
+
+```{r hos_base}
+# fit base model
+hos_mod0 <- glm(cbind(n.Readmit, n-n.Readmit) ~ HOSPITAL, family=
+                  binomial(link="logit"), data = readmit_hos_cut)
+
+# get ests and confints
+hos_b0 <- hos_mod0$coefficients[1]
+hos_b1 <- hos_mod0$coefficients[2]
+hos_confint <- confint(hos_mod0)
+hos_or <- exp(hos_b1)
+hos_or_confint <- exp(hos_confint[2,])
+
+```
+  
+The estimated odds ratio readmission risk for HOSPITAL is $e^{\hat{B_1}} = e^{0.251} = 1.285$, 95% CI: (1.253, 1.318); these results provide evidence that odds of readmission increases between 25.3% - 31.8% for each increased value in HOSPITAL score.  
+  
+The estimated model for probability of readmission can be estimated as:  
+
+$$p_{HOSP_i} = \frac{e^{-2.708 + 0.251*HOSP_i}}{1+e^{-2.708 + 0.251*HOSP_i}}$$  
+  
+Full model diagnostics are available in [Appendix F](#AppendixF)  
+  
+*Note need to plot base model, fit models with covariates, and perform model selection*    
+  
+  
+## Additional Model Fitting  
+  
+  - Explore patterns within the <30 day readmissions for changes in scores. Model LOS against acuity scores.  
