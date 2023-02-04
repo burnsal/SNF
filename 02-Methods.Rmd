@@ -1,7 +1,17 @@
   
 # Methods  
-Analyses will be conducted in R. All observations from 2010-2013 were removed from analysis due to changes in reporting calculated scores. An additional 33 records with missing values were excluded from overall analysis. Summary statistics for each calculated score will be reviewed, including: number of readmissions, readmission rate, odds of readmission, and log odds. Covariates will be reviewed for sufficient sample size within each group to include in model-fitting. Exploratory data analysis will also include visualizations of empirical log odds (logits) for each calculated score across all potential covariates.  
-Model fitting will begin with logistic regression considering the association of acuity score with readmission risk. Separate models will be fitted for each acuity score, and expand to consider covariates as appropriate. Additional observations may be dropped or aggregated in consideration of sample size and will be noted in each case. Individual models will be assessed through reviewing deviance residuals and conducting a $\chi^2$ goodness-of-fit test. Individual predictors will be assessed with confidence intervals. Models will be compared using Akaike's Information Criteria.  
+Analyses were conducted in R. All observations from 2010-2013 were removed from analysis due to changes in reporting calculated scores. An additional 33 records with missing values were excluded from overall analysis. Summary statistics for all values of each calculated score were reviewed, including: number of records, number of readmissions, readmission rate, odds of readmission, and log odds.  
+  
+Certain values at the tail-ends of each calculated score exhibited insufficient sample size. Since these values may be considered as clinical extremes, the following aggregations ensured $N \ge 20$ across the range of values considered:
+
+  + $CCI \ge 14$ were combined into one group, $N=28$  
+  + $LACE \le 4$ were combined into one group, $N=55$  
+  + $LACE \ge 18$ were combined into one group, $N=20$  
+  + $HOSPITAL \ge 11$ were combined into one group, $N=22$  
+  
+Covariates were reviewed for sufficient sample size within each group to include in model-fitting. Exploratory data analysis also included visualizations of empirical log odds (logits) for each calculated score across all potential covariates.  
+  
+Model fitting began with logistic regression considering the association of acuity score with readmission risk. Separate models were fitted for each acuity score, and expanded to consider covariates as appropriate. Additional observations were dropped or aggregated in consideration of sample size and were be noted in each case. Individual models were assessed through reviewing deviance residuals and conducting a $\chi^2$ goodness-of-fit test. Individual predictors were assessed with confidence intervals. Models for each score were compared using Akaike's Information Criteria.  
   
 *Note: add a MC simulation if there's enough time!*    
   
