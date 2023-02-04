@@ -1,0 +1,1352 @@
+---
+title: "SNF Statistical Analysis"
+author: "Amira Burns"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  word_document:
+    keep_md: yes
+  pdf_document:
+    self_contained: no
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+# -- Load Libraries
+library(readxl) # read in Excel files
+library(car) # Type III Sums of Squares Anova
+library(emmeans)  # multiple comparisons
+library(tidyverse) # data processing, visualization
+library(lubridate) # process dates
+library(ggsci) # colors
+library(rstatix)
+library(gridExtra) # make and arrange tables
+library(gtable) 
+library(kableExtra)
+library(nnet) # multinomial model fitting
+library(lme4) # multilevel model fitting
+```
+
+## Introduction  
+Rehospitalization of skilled nursing facility (SNF) residents remains a pertinent area of interest. Current financial penalties for rehospitalization of SNF patients are based in part on the studies by Ouslander et al., 2011 and Mor et al., 2010, demonstrating that many SNF hospitalizations were avoidable. With increasing age and complex illness severity and increasing use of SNFs for subacute rehabilitation/short-term stay, readmission metrics and financial penalties based on previous data may be due for reevaluation.  
+
+### Overview of Analysis Plan  
+  - Load and format the data  
+  - Exploratory tables and visuals, demographic disaggregation.   
+  - Check underlying assumptions regarding the data to determine what analysis tools to use.  
+  - Analysis of variance to determine demographic association with scores. 
+  - Explore post-hoc group contrasts for Anovas.  
+  - Define and fit general linear model (GLM) to assess readmission risk. 
+      + To determine current viability of calculated scores, use factors that contribute to those calculated scores and evaluate consistency between contribution to scores and contribution to GLM. 
+
+### Load and review the data  
+
+```{r load}
+snf_data <- read_xlsx("/data/SNF_CODED_CALCULATED_SCORES_04042022.xlsx",
+                      sheet = "CODED DATA AND CALCULATIONS")
+```
+  
+**Select and Format Variables**  
+Convert dates, factors to correct their correct format. Remove duplicated fields. Combine two variables for liver disease into single ordered variable; combine two variables for diabetes into single ordered variable. Clean values for `Race` and `InsurancePlanName`. DOB fields are not formatted correctly, year keeps defaulting to 20- instead of 19-; use patient age instead. Remove years 2010 - 2013 due to concerns about missing data repopulated as 0's instead of NAs.    
+```{r format_vars}
+snf_data <- snf_data %>%
+  transmute(SternClientID = `Stern Client Id`,
+            MRN = MRN,
+            Year = WorkSheet,
+            CurrentAdmit = as.Date(`Current Admit`, format = "%m/%d/%y"),          
+            DischargeDate = as.Date(`Discharge Date`, format = "%m/%d/%y"),
+            Gender = factor(Gender),
+            Race = Race,
+            Ethnicity = factor(Ethnicity),
+            InsurancePlanName = (InsurancePlanName),
+            ED6moPrior = factor(`LACE Num_of_ED_visits_prior 6months`),
+            PatientAge = PatientAge,
+            AdmissionHospital = factor(AdmissionHospital),
+            CCIAgeScore = ordered(`CCI AGE SCORE`),
+            LACELOSDaysScore = ordered(`LACE LOSDays SCORE`),
+            LOSDays = LOSDays,
+            LOS5Days = factor(`LOS>=5days`),
+            HOSPITALLOS5Days = factor(`HOSPITAL LOS>=5days`),
+            VisitType = factor(VisitType),
+            AdmitDtm = as.Date(AdmitDtm, format = "%m/%d/%y"),
+            DischargeDtm = as.Date(DischargeDtm, format = "%m/%d/%y"),
+            NumAdmitPastYear = `NumberOfAdmissionInPastYear`,
+            PriorAdmin = ordered(`HOSPITAL # OF admission prior yr`),
+            Cancer = factor(`HOSPITAL SCORE D/C ONC SERVICE`),
+            AcuteAdmin = factor(`LACE ACUTE ADMISSION`),
+            AdminType = factor(`HOSPITAL SCORE INDEX ADMISSION TYPE`),
+            Hemoglobin = `Hemoglobin at discharge`,
+            HemoglobinLevel = factor(`HOSPITAL SCORE Hemoglobin at discharge`),
+            Sodium = `Sodium, Serum at discharge`,
+            SodiumLevel = factor(`HOSPITAL SCORE Sodium`),
+            LACECCI = `LACE CCI SCORE`,
+            MyoInfarc = factor(`Myocardial infarction`),
+            CongHrtFail = factor(`Congestive heart failure`),
+            PeriphVascDis = factor(`Peripheral vascular disease`),
+            CerebroVascDis = factor(`Cerebrovascular disease`),
+            Dementia = factor(Dementia),
+            ChronPulmoDis = factor(`Chronic pulmonary disease`),
+            RheuConTisDis = factor(`Rheumatic disease=connective tissue disease`),
+            PepUlcDis = factor(`Peptic ulcer disease`),
+            MildLiverDis = factor(`MILD liver disease`), # combine into one liver disease var
+            ModSevLiverDis = factor(`MODERATE or SEVERE  liver disease`),
+            DiabetesWOChrCom = factor(`Diabetes WITHOUT chronic complication`), # combine into one diabetes var
+            DiabetesWChrCom = factor(`Diabetes WITH chronic complication`),
+            HemiParaPlegia = factor(`Hemiplegia or paraplegia`),
+            RenalDisCKD = factor(`Renal disease = mod to severe CKD`),
+            Malignancy = factor(`Any Malignancy`),
+            MetaSolidTumor = factor(`Metastatic solid tumour`),
+            AidsHIV = factor(`AIDS/HIV`),
+            CCI = `CALCULATED CCI SCORE`,
+            LACE = `CALCULATED LACE SCORE`,
+            HOSPITAL = `CALCULATED HOSPITAL SCORE`,
+            Readmit30 = `READMISSION <30DAYS`) %>%
+  mutate(StayDurationDays = as.numeric((DischargeDate - CurrentAdmit)+1),
+         DtmDuration = DischargeDtm - AdmitDtm)
+```  
+
+  
+```{r standardize}
+# Exclude records before 2014 due to reporting changes
+snf_data <- snf_data %>% filter(Year > 2013)
+
+# Create new column for whether or not record is a readmission
+snf_data <- snf_data %>%
+  mutate(Readmit30 = ifelse(Readmit30 == "N/A", "O", Readmit30)) %>%
+  rename(Readmit = Readmit30)
+
+
+# Standardize values of Race, Insurance, Liver Disease, Diabetes
+snf_data <- snf_data %>%
+  mutate(Race = as.factor(ifelse(Race == "White", "Caucasian/White",
+                       ifelse((Race == "Declined" | Race == "Not Specified" | Race == "Unknown"), "Unavailable/Unknown",
+                              ifelse(Race == "Multiracial", "Other/Multiracial", Race)))),
+         InsurancePlanCleaned = ifelse(grepl("MEDICARE", InsurancePlanName), "MCARE_MCAID",
+                                       ifelse(grepl("MCARE", InsurancePlanName), "MCARE_MCAID",
+                                              ifelse(grepl("MEDICAID", InsurancePlanName), "MCARE_MCAID",
+                                                     ifelse(grepl("MCAID", InsurancePlanName), "MCARE_MCAID",
+                                                            "NO_MCARE_MCAID")))),
+         LiverDis = ordered(ifelse(ModSevLiverDis == 3, 3,
+                                   ifelse(MildLiverDis == 1, 1, 0))),
+         Diabetes = ordered(ifelse(DiabetesWChrCom == 2, 2,
+                                   ifelse(DiabetesWOChrCom == 1, 1, 0))),
+         Readmit = as.factor(Readmit))
+
+# relevel Readmit factor
+snf_data$Readmit <- relevel(snf_data$Readmit, ref = "O")
+```
+  
+  
+**Check for Missing Data**    
+```{r, nas}
+# Summarize missing values by variable
+nas <- map(snf_data, ~sum(is.na(.)))
+# nas %>% as_tibble(nas) 
+
+# Look at records with missing values
+NAlook <- function(x) rowSums(x) > 0 
+NAs <- snf_data %>% filter(NAlook( across( .cols = everything(), .fns = ~ is.na(.x))))
+
+snf_data <- snf_data %>% na.omit()
+```  
+  
+33 records have at least one NA value, a total of 0.24% of total records. The three variables with missing values contribute to determining whether a patient was readmitted within 30 days (`DischargeDate`) or Hospital score (`HemoglobinLevel`, `SodiumLevel`). These records were removed from the subsequent analysis.  
+  
+***  
+  
+## Exploratory Data Analysis  
+  
+### Aggregated Scores Over Time  
+  
+**Score Histograms**  
+
+  
+```{r hist1}
+score_piv <- snf_data %>% 
+  dplyr::select(SternClientID, Year, CCI, LACE, HOSPITAL, Readmit) %>%
+  pivot_longer(!c(SternClientID, Year, Readmit), names_to = "score", values_to = "val")
+
+ggplot(score_piv, aes(x = val, fill = score)) + 
+  geom_histogram(bins = 20, alpha = 0.5) + 
+  scale_fill_manual(values = c("red","cornflowerblue","goldenrod")) + 
+  theme_minimal() + 
+  labs(x = "score", title = "Score Histograms")
+```
+  
+```{r hist2}  
+ggplot(score_piv, aes(x = val, fill = score)) + 
+  geom_histogram(bins = 18, alpha = 0.5) + 
+  facet_wrap(vars(as.factor(Year))) + 
+  scale_fill_manual(values = c("red","cornflowerblue","goldenrod")) + 
+  theme_minimal() + 
+  labs(x = "score", title = "Score Histograms by Year")
+```  
+No apparent changes in distribution for CCI and HOSPITAL scores over time; it looks like LACE score becomes more left-skewed over time. Distributions of the scores are a little skewed, but the sample size is large enough that we can expect assumptions of normality to hold. We can look at each score in separate plots to verify patterns.  
+  
+```{r histCCI}  
+CCI_piv <- score_piv %>% filter(score == "CCI")
+
+ggplot(CCI_piv, aes(x = val)) + 
+  geom_histogram(bins = 18, alpha = 0.7, fill = "red") + 
+  theme_minimal() + 
+  labs(x = "CCI", fill = "CCI", title = "CCI Score Histogram")
+
+ggplot(CCI_piv, aes(x = val)) + 
+  geom_histogram(bins = 18, alpha = 0.7, fill = "red") + 
+  theme_minimal() + facet_wrap(vars(Year)) + 
+  labs(x = "CCI", fill = "CCI", title = "CCI Score by Year Histogram")
+
+```  
+  
+```{r histLACE}  
+LACE_piv <- score_piv %>% filter(score == "LACE")
+
+ggplot(LACE_piv, aes(x = val)) + 
+  geom_histogram(bins = 18, alpha = 0.7, fill = "cornflowerblue") + 
+  theme_minimal() + 
+  labs(x = "LACE", fill = "LACE", title = "LACE Score Histogram")
+
+ggplot(LACE_piv, aes(x = val)) + 
+  geom_histogram(bins = 18, fill = "cornflowerblue", alpha = 0.7) + 
+  theme_minimal() + facet_wrap(vars(Year)) + 
+  labs(x = "LACE", fill = "LACE", title = "LACE Score by Year Histogram")
+
+```  
+ 
+```{r histHOSP}  
+HOSP_piv <- score_piv %>% filter(score == "HOSPITAL")
+
+ggplot(HOSP_piv, aes(x = val)) + 
+  geom_histogram(bins = 13, alpha = 0.7, fill = "goldenrod") + 
+  theme_minimal() + 
+  labs(x = "HOSP", fill = "HOSP", title = "HOSP Score Histogram")
+
+ggplot(HOSP_piv, aes(x = val)) + 
+  geom_histogram(bins = 13, fill = "goldenrod", alpha = 0.7) + 
+  theme_minimal() + facet_wrap(vars(Year)) + 
+  labs(x = "HOSP", fill = "HOSP", title = "HOSP Score by Year Histogram")
+
+```    
+
+  
+  
+**Density plots**  
+Distribution of calculated scores by year. These plots tell us how score patterns differ year to year, accounting for the number of records each year. Distribution for each score looks relatively similar year over year, with a few notes.  
+
+```{r densplot}
+# Density Plot CCI by Year
+ggplot(snf_data, aes(x = CCI, after_stat(density), colour = factor(Year))) + 
+  geom_freqpoly(bins = 17) + scale_color_d3() + theme_minimal() + 
+  labs(title = "Density Plot : CCI Score by Year", 
+       colour = "Year")
+
+# Density Plot LACE by Year
+ggplot(snf_data, aes(x = LACE, after_stat(density), colour = factor(Year))) + 
+  geom_freqpoly(bins = 19) + scale_color_d3() + theme_minimal() + 
+  labs(title = "Density Plot : LACE Score by Year", 
+       colour = "Year")
+
+# Density Plot Hospital by Year
+ggplot(snf_data, aes(x = HOSPITAL, after_stat(density), colour = factor(Year))) + 
+  geom_freqpoly(bins = 17) + scale_color_d3() + theme_minimal() + 
+  labs(title = "Density Plot : HOSPITAL Score by Year", 
+       colour = "Year")
+```    
+  
+We can also review QQ-plots of each score's sampling distribution against a theoretical normal distribution to assess any violations of normality assumptions.  
+  
+```{r qq_scores}
+qqC <- ggplot(snf_data, aes(sample = CCI)) + 
+  stat_qq() + stat_qq_line() + 
+  theme_minimal() + ggtitle("CCI QQNorm Plot")
+
+qqL <- ggplot(snf_data, aes(sample = LACE)) + 
+  stat_qq() + stat_qq_line() + 
+  theme_minimal() + ggtitle("LACE QQNorm Plot")
+
+qqH <- ggplot(snf_data, aes(sample = HOSPITAL)) + 
+  stat_qq() + stat_qq_line() + 
+  theme_minimal() + ggtitle("Hospital QQNorm Plot")
+
+grid.arrange(qqC, qqL, qqH, ncol = 3)
+```  
+  
+Deviations from strict adherance to normality are to be expected after looking at the histogram plots. CCI looks a little wonky in the upper tail; comparing results from compatible parametric and non-parametric tests will make results more reliable. LACE and HOSPITAL qq-plots look "normal enough" at this sample size.  
+  
+  
+**Summary Statistics for Score**  
+  
+```{r score_sums}
+m_scores <- snf_data %>% group_by(Year) %>%
+  summarise(across(CCI:HOSPITAL, list(n = ~n(), mean = mean, median = median, sd = sd))) %>% dplyr::select(!c(LACE_n, HOSPITAL_n)) %>%
+  rename(N = CCI_n)
+
+m_scores %>%
+  kbl(caption = "Num Records, Mean, Median Scores by Year", digits = 2,
+      col.names = c("Year", "N", rep(c("Mean", "Median", "SD"), 3))) %>% 
+  kable_styling("striped", full_width = F) %>%
+  add_header_above(c(" " = 2, "CCI" = 3, "LACE" = 3, "HOSPITAL" = 3))
+
+colors <- c("CCI" = "red", "LACE" = "cornflowerblue", "HOSPITAL" = "goldenrod")
+linetypes <- c("mean" = 1, "median" = 22)
+ggplot(m_scores, aes(x = Year,)) + 
+  geom_line(aes(y = CCI_mean, color = "CCI", linetype = "mean"), lwd = 1.2) + 
+  geom_line(aes(y = CCI_median, color = "CCI", linetype = "median"), lwd = 1.2) + 
+  geom_line(aes(y = LACE_mean, color = "LACE", linetype = "mean"), lwd = 1.2) + 
+  geom_line(aes(y = LACE_median, color = "LACE", linetype = "median"), lwd = 1.2) + 
+  geom_line(aes(y = HOSPITAL_mean, color = "HOSPITAL", linetype = "mean"), lwd = 1.2) + 
+  geom_line(aes(y = HOSPITAL_median, color = "HOSPITAL", linetype = "median"), lwd = 1.2) + 
+  labs(title = "Mean, Median Scores by Year",
+       y = "Summarised Score", color = "Score") + 
+  scale_color_manual(values = colors) + 
+  scale_linetype_manual(name = "Statistic", values = linetypes) +
+  theme_minimal() + theme(text = element_text(size = 24)) + 
+  scale_x_continuous(breaks = seq(2014, 2019, 1)) + 
+  scale_y_continuous(limits = c(2, 12), breaks = seq(0, 12, 2))
+```  
+  
+Median scores are not significantly different from the mean scores, indicating symmetrical structure to all three scores. All three scores increase slightly over the years but move with the same pattern, indicating that these evaluation metrics have been assigned consistently over time. To confirm, variables can be scaled and tested for significant differences in means.   
+
+```{r scores_over_time}
+CCI_lm <- lm(CCI ~ scale(Year), data = snf_data)
+summary(CCI_lm)
+CCI_ci <- confint(CCI_lm)[2,]
+
+LACE_lm <- lm(LACE ~ scale(Year), data = snf_data)
+summary(LACE_lm)
+LACE_ci <- confint(LACE_lm)[2,]
+
+HOS_lm <- lm(HOSPITAL ~ scale(Year), data = snf_data)
+summary(HOS_lm)
+HOS_ci <- confint(HOS_lm)[2,]
+
+ests <- c(summary(CCI_lm)$coef[2,1], summary(LACE_lm)$coef[2,1], summary(HOS_lm)$coef[2,1])
+low <- c(CCI_ci[1], LACE_ci[1], HOS_ci[1])
+high <- c(CCI_ci[2], LACE_ci[2], HOS_ci[2])
+
+lm_tab <- rbind(ests, low, high)
+colnames(lm_tab) <- c("CCI", "LACE", "HOSPITAL")
+rownames(lm_tab) <- c("Est Annual Change", "Low 95%", "High 95%")
+
+kbl(lm_tab, caption = "Estimated Annual Increase in Calculated Scores",
+    digits = 3) %>%
+  kable_classic(font_size = 12, html_font = "Cambria") %>%
+  kable_styling(full_width = F)
+  
+```
+  
+```{r lmplot}
+# Create fitted lines from lms
+x <- seq(0, 6, length.out = 200)
+
+fitline <- function(fit){
+  a <- fit$coefficients[1]
+  b <- fit$coefficients[2]
+  y <- a + b*x
+  return(y)
+}
+
+fitlow <- function(fit){
+  a <- confint(fit)[1,1]
+  b <- confint(fit)[2,1]
+  y <- a + b*x
+  return(y)
+}
+
+fithigh <- function(fit){
+  a <- confint(fit)[1,2]
+  b <- confint(fit)[2,2]
+  y <- a + b*x
+  return(y)
+}
+
+CCI_y <- fitline(CCI_lm)
+CCI_low <- fitlow(CCI_lm)
+CCI_high <- fithigh(CCI_lm)
+
+LACE_y <- fitline(LACE_lm)
+LACE_low <- fitlow(LACE_lm)
+LACE_high <- fithigh(LACE_lm)
+
+HOS_y <- fitline(HOS_lm)
+HOS_low <- fitlow(HOS_lm)
+HOS_high <- fithigh(HOS_lm)
+
+lm_df <- data.frame(x, CCI_y, CCI_low, CCI_high, 
+                    LACE_y, LACE_low, LACE_high,
+                    HOS_y, HOS_low, HOS_high)
+
+colors <- c("CCI" = "red", "LACE" = "cornflowerblue", "HOSPITAL" = "goldenrod")
+linetypes <- c("empirical mean" = 22, "estimated mean" = 1, "CI" = 6)
+
+ggplot(snf_data, aes(x = Year)) + 
+  geom_smooth(mapping = aes(y = CCI, color = "CCI"), method = lm, se=TRUE) + 
+  geom_smooth(mapping = aes(y = LACE, color = "LACE"), method = lm, se = TRUE) + 
+  geom_smooth(mapping = aes(y = HOSPITAL, color = "HOSPITAL"), method = lm, se = TRUE) + 
+  labs(title = "Calculated Scores by Year", x = "Year",
+       y =  "Score", color = "Score") + 
+  scale_color_manual(values = colors) + 
+  scale_linetype_manual(name = "Statistic", values = linetypes) +
+  theme_minimal() + theme(text = element_text(size = 24)) + 
+  scale_x_continuous(breaks = seq(2014, 2019, 1)) + 
+  scale_y_continuous(limits = c(2, 12), breaks = seq(2, 12, 2))
+```  
+  
+Linear models assess changes in score over time, averaged across all other predictors. Positive estimates associated with small p-values indicate that all scores increase over time. However, the low adjusted $R^2$ referring to proportion of total variability explained by Year lead to the conclusion that other factors are more strongly associated with score changes over time. Additionally, the relatively small estimates of annual score increase may imply limited clinically significant increases in scores over time. 
+
+***  
+
+    
+### Demographics  
+  
+**Gender**  
+Histograms and density plots of patient age by gender show no obvious changes in patient age or gender distributions over time. The data is also sufficiently symmetric.   
+
+```{r meangender1}
+snf_data %>% group_by(Gender) %>% 
+  summarise(across(PatientAge, list(n = ~n(), mean = mean, median = median, sd = sd))) %>%
+  rename(N = PatientAge_n, Mean = PatientAge_mean, Median = PatientAge_median,
+         SD = PatientAge_sd) %>%
+  kbl(caption = "Patient Age by Gender", digits = 2) %>%
+  kable_classic(font_size = 12, html_font = "Cambria") %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"), full_width=F)
+```  
+  
+```{r genderhist1}
+age <- snf_data %>% 
+  select(SternClientID, Year, Gender, PatientAge) %>%
+  filter(Gender != "Unspecified")
+
+ggplot(age, aes(x = PatientAge, fill = Gender)) + 
+  geom_histogram(bins = 30, alpha = 0.7) + 
+  scale_fill_manual(values = c("red","cornflowerblue")) + 
+  theme_minimal() + 
+  labs(title = "Patient Age by Gender")
+```
+  
+```{r genderhist2}  
+ggplot(age, aes(x = PatientAge, fill = Gender)) + 
+  geom_histogram(bins = 30, alpha = 0.7) + 
+  facet_wrap(vars(as.factor(Year))) + 
+  scale_fill_manual(values = c("red","cornflowerblue")) + 
+  theme_minimal() + 
+  labs(title = "Patient Age by Gender, by Year")
+```  
+  
+```{r genderhist3}  
+age_mf <- filter(age, Gender != "Unspecified")
+ggplot(age_mf, aes(x = PatientAge, after_stat(density), colour = as.factor(Year))) + 
+  geom_freqpoly(bins = 20) + 
+  facet_wrap(vars(Gender)) + 
+  scale_color_d3() + theme_minimal() + 
+  labs(title = "Patient Age by Year Density Plot, by Gender",
+       color = "Year")
+```  
+    
+  
+There are consistently more female patients, and age is slightly higher in female patients. Histograms show similar age distributions across genders and little changes over time.  
+  
+```{r meangender2}  
+ageyr <- snf_data %>% group_by(Gender, Year) %>%
+  summarise(across(PatientAge, list(n = ~n(), mean = mean, median = median, sd = sd))) %>%
+  rename(N = PatientAge_n, Mean = PatientAge_mean, Median = PatientAge_median,
+         SD = PatientAge_sd) 
+ageyr[,2:6] %>%
+  kbl(caption = "Patient Age by Gender, Year", digits = 1) %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  kable_styling(latex_options = c("striped", "HOLD_position")) %>%
+  pack_rows("Female", 1, 6) %>%
+  pack_rows("Male", 7, 12) %>%
+  pack_rows("Unspecified", 13, 14)
+```  
+  
+```{r meangender3}  
+ageyr <- ageyr %>% filter(Gender != "Unspecified")
+
+linetypes <- c("Mean" = 1, "Median" = 2)
+ggplot(ageyr, aes(x = Year)) + 
+  geom_line(aes(y = Mean, color = Gender), lwd = 1.2) + 
+  geom_line(aes(y = Median, color = Gender), lty = 2, lwd = 1.2) + 
+  labs(title = "Mean, Median Age by Gender, Year",
+       y = "Age", color = "Gender") + theme_minimal() +
+  scale_color_manual(values = c("red","cornflowerblue")) + 
+  scale_linetype_manual(name = "Statistic", values = linetypes) +
+  scale_x_continuous(breaks = seq(2014, 2019, 1)) 
+
+# update legend with lty 
+```  
+  
+Graph of mean and median age over time shows a slight increase for both genders; however, median age over time across gender diverges, with median Male age decreasing after 2013. This indicates a possible interaction between Gender and Age that must be checked in the model-building phase.     
+
+
+**Race and Ethnicity**
+
+```{r race}
+# Table of counts, frequencies
+snf_data %>% count(Race) %>% 
+  mutate(Freq = round(n/sum(n), 3)) %>%
+  kbl(caption = "Patient Counts and Proportion of Total by Race",
+      col.names = c("Race", "N", "Frequency")) %>% 
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+```  
+  
+
+```{r avg_race_score}
+race_scores <- snf_data %>%
+  group_by(Race) %>% 
+  summarise(across(CCI:HOSPITAL, list(mean = mean, median = median, sd = sd))) 
+race_scores %>%
+  kbl(caption = "Score Summaries by Race", digits = 1,
+      col.names = c("Race", rep(c("Mean", "Median", "SD"), 3))) %>% 
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  kable_styling(latex_options = c("striped", "HOLD_position", "scale_down")) %>%
+  add_header_above(c(" " = 1, "CCI" = 3, "LACE" = 3, "HOSPITAL" = 3))
+```  
+  
+  
+Patterns across score by race are also consistent.  
+```{r ethnicity}
+
+# snf_data %>% count(Ethnicity) %>% mutate(freq = round(n/sum(n), 3))
+
+#snf_data %>% group_by(Race, Ethnicity) %>% summarise(n = n()) %>% ungroup() %>%
+#  mutate(freq = round(n/sum(n), 3))
+
+eth_scores <- snf_data %>% group_by(Ethnicity) %>% 
+  summarise(across(CCI:HOSPITAL, list(mean = mean, median = median, sd = sd))) 
+
+eth_scores %>% 
+  kbl(caption = "Score Summary by Ethnicity", digits = 1,
+      col.names = c("Ethnicity", rep(c("Mean", "Median", "SD"), 3))) %>%
+  kable_classic(html_font = "Cambria", full_width = F) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position")) %>%
+  add_header_above(c(" " = 1, "CCI" = 3, "LACE" = 3, "HOSPITAL" = 3))
+  
+```  
+
+```{r raceeth}
+# Incorporate Hispanic ethnicity into Race variable
+snf_data <- snf_data %>%
+  mutate(Race_Eth = factor(ifelse(Ethnicity == "Hispanic or Latino", "Hispanic/Latino", as.character(Race))))
+
+snf_data %>% group_by(Race_Eth, Year) %>% 
+  summarise(n = n()) %>%
+  ungroup() %>%
+  mutate(freq = round(n/sum(n), 3)) %>%
+  pivot_wider(names_from = Race_Eth, values_from = c(n, freq), names_vary = "slowest") %>%
+  kbl(caption = "Counts and Proportions of Patients by Race/Ethnicity and Year",
+      col.names = c("Year", rep(c("N", "Freq"), 7))) %>%
+    kable_classic(html_font = "Cambria", full_width = F) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position")) %>%
+  add_header_above(c(" " = 1, "African American/Black" = 2, "Asian" = 2,
+                     "Caucasian/White" = 2, "Hispanic/Latino" = 2, "Native American/Alaskan" = 2,
+                     "Other/Multiracial" = 2, "Unavailable/Unknown" = 2))
+
+```
+
+
+```{r race_scores}
+race_score_piv <- snf_data %>% 
+  select(SternClientID, Year, Race_Eth, CCI, LACE, HOSPITAL) %>%
+  pivot_longer(!c(SternClientID, Year, Race_Eth), names_to = "score", values_to = "val")
+
+ggplot(race_score_piv, aes(x = val, fill = Race_Eth)) + 
+  geom_histogram(bins = 15, alpha = 0.7) + 
+  facet_wrap(vars(score)) + scale_fill_d3() + 
+  theme_minimal() + labs(x = "score",
+                         title = "Score Histogram by Race/Ethnicity",
+                         fill = "Race/Ethnicity")
+
+race_CCI_piv <- race_score_piv %>% filter(score == "CCI")
+race_LACE_piv <- race_score_piv %>% filter(score == "LACE")
+race_HOSP_piv <- race_score_piv %>% filter(score == "HOSPITAL")
+
+ggplot(race_CCI_piv, aes(x = val, fill = Race_Eth)) + 
+  geom_histogram(bins = 12, alpha = 0.7) + scale_fill_d3() + 
+  theme_minimal() + labs(x = "score", title = "CCI by Race/Ethnicity",
+                         fill = "Race/Ethnicity")
+
+ggplot(race_LACE_piv, aes(x = val, fill = Race_Eth)) + 
+  geom_histogram(bins = 12, alpha = 0.7) + scale_fill_d3() + 
+  theme_minimal() + labs(x = "score", title = "LACE by Race/Ethnicity",
+                         fill = "Race/Ethnicity")
+
+ggplot(race_HOSP_piv, aes(x = val, fill = Race_Eth)) + 
+  geom_histogram(bins = 12, alpha = 0.7) + scale_fill_d3() + 
+  theme_minimal() + labs(x = "score", title = "HOSPITAL by Race/Ethnicity",
+                         fill = "Race/Ethnicity")
+```
+    
+```{r racescores2}  
+ggplot(race_score_piv, aes(x = val, after_stat(density), color = Race_Eth)) + 
+  geom_freqpoly(bins = 10) + facet_wrap(vars(score)) + 
+  theme_minimal() + scale_color_d3() + 
+  labs(x = "score", title = "Density Plot : Score by Race")
+```  
+  
+
+
+  
+```{r racescore_time}
+raceyr <- snf_data %>% group_by(Race_Eth, Year) %>%
+  summarise(across(CCI:HOSPITAL, list(n = ~n(), mean = mean, median = median, sd = sd))) %>%
+  select(!c(LACE_n, HOSPITAL_n)) %>%
+  rename(Race_Ethnicity = Race_Eth, n = CCI_n, 
+         meanCCI = CCI_mean, medCCI = CCI_median, sdCCI = CCI_sd,
+         meanLACE = LACE_mean, medLACE = LACE_median, sdLACE = LACE_sd,
+         meanHOSP = HOSPITAL_mean, medHOSP = HOSPITAL_median, sdHOSP = HOSPITAL_sd) 
+
+raceyr[,2:12] %>%
+  kbl(caption = "Score Summary by Race/Ethnicity, Year", digits = 1,
+      col.names = c("Year", "N", rep(c("Mean", "Median", "SD"), 3))) %>%
+  kable_styling(latex_options = c("striped", "HOLD_position", "scale_down")) %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  add_header_above(c(" " = 2, "CCI" = 3, "LACE" = 3, "HOSP" = 3)) %>%
+  pack_rows("African American / Black", 1 , 6) %>%
+  pack_rows("Asian", 7, 12) %>%
+  pack_rows("Caucasian/White", 13, 18) %>%
+  pack_rows("Hispanic/Latino", 19, 24) %>%
+  pack_rows("Native American / Alaskan", 25, 30) %>%
+  pack_rows("Other / Multiracial", 31, 36) %>%
+  pack_rows("Unavailable / Unknown", 37, 42)
+```
+  
+```{r raceyr}
+# pivot table for faceting
+ryr <- raceyr %>%
+  select(-c(n, medCCI, sdCCI, medLACE, sdLACE, medHOSP, sdHOSP)) %>%
+  rename(CCI = meanCCI, LACE = meanLACE, HOSPITAL = meanHOSP) %>%
+  pivot_longer(!c(Race_Ethnicity, Year),
+               names_to = "Score", values_to = "Value")
+
+ggplot(ryr, aes(x = Year, y = Value, color = Race_Ethnicity)) + 
+  geom_line(size = 1.2) + 
+  facet_wrap(~Score) + 
+  labs(title = "Empirical Mean Score by Race/Ethnicity, Year",
+       y = "Score", color = "Race/Ethnicity") + theme_minimal() +
+  scale_color_d3() + 
+  theme(axis.text.x = element_text(angle = 45)) 
+```  
+  
+Plots showing both mean and median scores over time for all races were too busy to read clearly. Plots of means over time show a greater increase in all scores for Native Amer/Alaskan individuals, but the sample size for this group is in the single digits for each year observed. 
+  
+
+**Insurance**  
+  
+```{r ins}
+ins <- snf_data %>% group_by(InsurancePlanCleaned, Year) %>%
+  summarise(across(CCI:HOSPITAL, list(n = ~n(), mean = mean, 
+                                      median = median, sd = sd)))
+
+ggplot(snf_data, aes(x = InsurancePlanCleaned, y = CCI, 
+                     fill = InsurancePlanCleaned)) + 
+  geom_boxplot() + facet_wrap(vars(Year)) + 
+  scale_fill_d3() + theme_minimal() + 
+  scale_x_discrete(labels = c(rep(" ", 2))) + 
+  labs(title = "Boxplot of CCI by Insurance Type, by Year",
+       fill = "Insurance")
+
+ggplot(snf_data, aes(x = InsurancePlanCleaned, y = LACE, 
+                     fill = InsurancePlanCleaned)) + 
+  geom_boxplot() + facet_wrap(vars(Year)) + 
+  scale_fill_d3() + theme_minimal() + 
+  scale_x_discrete(labels = c(rep(" ", 2))) + 
+  labs(title = "Boxplot of LACE by Insurance Type, by Year",
+       fill = "Insurance")
+
+ggplot(snf_data, aes(x = InsurancePlanCleaned, y = HOSPITAL, 
+                     fill = InsurancePlanCleaned)) + 
+  geom_boxplot() + facet_wrap(vars(Year)) + 
+  scale_fill_d3() + theme_minimal() + 
+  scale_x_discrete(labels = c(rep(" ", 2))) + 
+  labs(title = "Boxplot of HOSPITAL by Insurance Type, by Year",
+       fill = "Insurance")
+```
+  
+***  
+  
+# Analysis  
+
+Analysis of Variance is conducted for each of the three calculated scores (CCI, LACE, and HOSPITAL) for association with the following variables:  
+  * **Year**: 2014 - 2019  
+  * **Patient Age**: Patient age at time of hospitalization, ranging from 18 to 106. This variable is condensed into an ordered categorical variable and used in calculating CCI and LACE scores, so it is excluded from those analyses. Since association with PatientAge is inherent to these calculated scores, including the term would unnecessarily complicate interaction analysis without adding additional information.      
+  * **Gender**: Male or Female. Three observations with `Gender` = "Unspecified" are excluded from analysis; the small group size produces erroneous errors when testing for interactions.  
+  * **Race/Ethnicity**: Factor with six levels: "African American/Black", "Asian", Caucasian/White", "Hispanic/Latino", "Other/Multiracial", and "Unavailable/Unknown". 27 observations with `Race\Eth` = "Native American/Alaskan" are combined with "Other/Multiracial" since the small group size produces erroneous errors when testing for interactions.  
+  * **Insurance**: Factor with two levels: "Medicare/Medicaid" and "Not Medicare/Medicaid". 235 unique values for Insurance Plan were combed for words "Medicare", "MCare", "Medicaid", "MCaid" and categorized as "Medicare/Medicaid"; all other observations are categorized as "Not Medicare/Medicaid". 
+
+  
+All p-values within each ANOVA are adjusted using the Benjamini, Hochberg (1995) correction for False Discovery Rate. Since each score is calculated differently and is used as a different type of evaluation metric, p-value adjustment is not performed between ANOVAs.  
+  
+Current post-hoc analysis examines differences of means for main effects and any identified interactions.  
+
+```{r data_prep}
+snf_data_a <- snf_data %>% 
+  filter(Gender != "Unspecified") %>%
+  mutate(Race_Eth = fct_recode(Race_Eth, "Other/Multiracial" = "Native Amer/Alaskan"),
+         Insurance = as.factor(InsurancePlanCleaned))
+snf_data_a$Gender <- droplevels(snf_data_a$Gender)
+```
+
+## ANOVA  
+
+### CCI
+After correcting for multiple comparisons, `Year` and `Race/Ethnicity`, and `Insurance`  are strongly associated with changes in CCI scores. No interactions between demographic factors or time are indicated. Gender is not associated with meaningful differences in CCI scores.     
+  
+```{r cci_aov}
+CCI_mod <- lm(CCI ~ Year * Gender * Race_Eth * Insurance,
+               data = snf_data_a)
+
+CCI_a <- Anova(CCI_mod, type = "II")
+bhp <- round(p.adjust(CCI_a$`Pr(>F)`, method = "BH"), digits = 3)[1:15]
+
+CCI_aov <- anova_summary(CCI_a, detailed = TRUE) %>%
+  select(c(1, 2, 4, 6)) %>%
+  mutate(`p-value` = bhp) %>%
+  mutate_if(is.numeric, round, 3)
+CCI_aov %>% 
+  kbl(caption = "ANOVA Table : CCI by Year, Demographics") %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+  
+### LACE  
+All main effects appear associated with LACE scores. LACE also incorporates age into calculation so  `PatientAge` is excluded from the analysis. Among possible interactions, `Year`:`Insurance` is identified for further exploration.
+```{r lace_aov}
+LACE_mod <- lm(LACE ~ Year * PatientAge * Gender * Race_Eth * Insurance,
+               data = snf_data_a)
+
+LACE_a <- Anova(LACE_mod, type = "II")
+bhp <- round(p.adjust(LACE_a$`Pr(>F)`, method = "BH"), digits = 3)[1:31]
+
+LACE_aov <- anova_summary(LACE_a, detailed = TRUE) %>%
+  select(c(1, 2, 4, 6)) %>%
+  mutate(p_adj = bhp) %>%
+  mutate_if(is.numeric, round, 3)
+LACE_aov %>% 
+  kbl(caption = "ANOVA Table : LACE by Year, Demographics") %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  kable_styling(latex_options = "HOLD_position")
+```  
+
+### HOSPITAL  
+We explored formatting PatientAge as a categorical variable with the same groups used to calculate LACE and CCI scores, but there were too many group combinations so PatientAge remains a continuous covatiate.    
+All main effects of demographic variables examined show association with changes in HOSPITAL scores. Additional two-way interactions to explore include `Year`:`Race/Ethnicity`, `PatientAge`:`Insurance`, `Year`:`PatientAge`, `Race/Ethnicity`:`Insurance`, along with a three-way interaction between `PatientAge`:`Race/Ethnicity`:`Insurance`.  
+  
+  
+```{r hosp_aov}
+HOSP_mod <- lm(HOSPITAL ~ Year * PatientAge * Gender * Race_Eth * Insurance,
+               data = snf_data_a)
+
+HOSP_a <- Anova(HOSP_mod, type = "II")
+bhp <- round(p.adjust(HOSP_a$`Pr(>F)`, method = "BH"), digits = 3)[1:31]
+
+HOSP_aov <- anova_summary(HOSP_a, detailed = TRUE) %>%
+  select(c(1, 2, 4, 6)) %>%
+  mutate(p_adj = bhp) %>%
+  mutate_if(is.numeric, round, 3)
+HOSP_aov %>% 
+  kbl(caption = "ANOVA Table : HOSPITAL by Year, Demographics") %>%
+  kable_classic(full_width = F, html_font = "Cambria") %>%
+  kable_styling(latex_options = "HOLD_position")
+```  
+
+ 
+## GROUP CONTRASTS
+
+  
+```{r CCI_groupcontr}
+# Include all main effects
+CCI_cont <- lm(CCI ~ Year + Gender + Race_Eth + Insurance, data = snf_data_a)
+```
+
+```{r lace_grpcontr}
+LACE_cont <- lm(LACE ~ Year + Gender + Race_Eth + Insurance + Race_Eth:Insurance + 
+                Year:Insurance + Year:Race_Eth:Insurance, data = snf_data_a)
+```
+
+```{r hosp_grcontr}
+HOSP_cont <- lm(HOSPITAL ~ Year + PatientAge + Gender + Race_Eth + Insurance + 
+                Year:PatientAge + Year:Race_Eth + PatientAge:Insurance + Race_Eth:Insurance, data = snf_data_a)
+```
+
+### Gender
+
+#### CCI
+```{r CCI_gen}
+# Marginal means and CIs
+CCI_gen_emm <- emmeans(CCI_cont, "Gender")
+
+# Test for significance
+CCI_gen_pair <- pairs(CCI_gen_emm, adjust = "tukey")
+
+# est marginal means and CIs
+CCI_gen_cont <- confint(CCI_gen_emm, calc = c(n = ~.wgt.))
+```
+
+#### LACE
+
+```{r lace_gen}
+# Marginal means and CIs
+LACE_gen_emm <- emmeans(LACE_cont, "Gender")
+
+# Test for significance
+LACE_gen_pair <- pairs(LACE_gen_emm, adjust = "tukey")
+
+# est marginal means and CIs
+LACE_gen_cont <- confint(LACE_gen_emm, calc = c(n = ~.wgt.))
+```
+
+#### HOSPITAL
+```{r hosp_gen}
+# Marginal means and CIs
+HOSP_gen_emm <- emmeans(HOSP_cont, "Gender")
+
+# Test of significance
+HOSP_gen_pair <- pairs(HOSP_gen_emm, adjust = "tukey")
+
+# Est marginal means and CIs
+plot(HOSP_gen_emm, comparisons = TRUE) + 
+  ggtitle("HOSPITAL : Estimated Marginal Means by Gender, with direction and CI")
+HOS_gen_cont <- confint(HOSP_gen_emm, calc = c(n = ~.wgt.))
+```
+
+
+  
+  
+### Race/Ethnicity
+
+#### CCI
+```{r CCI_re}
+# Marginal means and CIs
+CCI_reth_emm <- emmeans(CCI_cont, "Race_Eth")
+
+# pairwise comparison test of significance
+CCI_reth_pair <- pairs(CCI_reth_emm)
+
+# plots
+plot(CCI_reth_emm, comparisons = TRUE) + 
+     ggtitle("CCI : Est Marginal Means by Race/Ethnicity, with direction and CI")
+emmip(CCI_cont, Race_Eth ~ Year, cov.reduce = range) + 
+  theme_minimal() + 
+  labs(title = "Annual Trend of CCI Score by Race/Ethnicity",
+       color = "Race/Ethnicity")
+```
+
+#### LACE
+```{r lace_reth}
+# est marginal means and CIs
+LACE_reth_emm <- emmeans(LACE_cont, "Race_Eth")
+
+# pairwise comparisons
+LACE_reth_pair <- pairs(LACE_reth_emm)
+
+# plots
+plot(LACE_reth_emm, comparisons = TRUE) + 
+  ggtitle("LACE : Est Marginal Means by Race/Ethnicity, with direction and CI")
+```
+
+#### HOSPITAL
+```{r hosp_reth}
+# emmeans and CIs
+HOSP_reth_emm <- emmeans(HOSP_cont, "Race_Eth")
+
+# pairwise comparisons
+HOSP_reth_pair <- pairs(HOSP_reth_emm)
+
+# plots
+plot(HOSP_reth_emm, comparisons = TRUE) + 
+  ggtitle("HOSPITAL : Estimated Marginal Means by Race/Ethnicity, with direction and CI")
+
+```
+
+### Insurance
+
+#### CCI 
+
+```{r CCI_ins}
+# emmeans and CI
+CCI_ins_emm <- emmeans(CCI_cont, "Insurance")
+
+# pairwise comparisons
+CCI_ins_pair <- pairs(CCI_ins_emm)
+
+# plots
+plot(CCI_ins_emm, comparisons = TRUE) + 
+     ggtitle("CCI : Est Marginal Means by Insurance, with direction and CI")
+```
+  
+  
+#### LACE 
+
+```{r lace_ins}
+# emmeans and CIs
+LACE_ins_emm <- emmeans(LACE_cont, "Insurance")
+
+# pairwise comparisons
+LACE_ins_pair <- pairs(LACE_ins_emm)
+
+# plots
+plot(LACE_ins_emm, comparisons = TRUE) + 
+  ggtitle("LACE : Est Marginal Means by Insurance, with direction and CI")
+
+```
+
+
+#### HOSPITAL  
+```{r hosp_ins}
+# emmeans and CIs
+HOSP_ins_emm <- emmeans(HOSP_cont, "Insurance")
+
+# pairwise comparisons
+HOSP_ins_pair <- pairs(HOSP_ins_emm)
+
+# plots
+plot(HOSP_ins_emm, comparisons = TRUE) + 
+  ggtitle("HOSPITAL : Estimated Marginal Means by Insurance, with direction and CI")
+
+```
+
+#### Main Effects Table   
+```{r maintab}
+# Gender
+CCI_cdf <- data.frame(CCI_gen_emm)
+LACE_cdf <- data.frame(LACE_gen_emm)
+HOS_cdf <- data.frame(HOSP_gen_emm)
+
+fem <- c(round(CCI_cdf[1,2], digits = 2), 
+         paste0("(", round(CCI_cdf[1,5], digits = 2), ", ", round(CCI_cdf[1,6], digits = 2), ")"),
+         round(LACE_cdf[1,2], digits = 2),
+         paste0("(", round(LACE_cdf[1,5], digits = 2), " , ", round(LACE_cdf[1,6], digits = 2), ")"),
+         round(HOS_cdf[1,2], digits = 2),
+         paste0("(", round(HOS_cdf[1,5], digits = 2), " , ", round(HOS_cdf[1,6], digits = 2), ")"))
+
+male <- c(round(CCI_cdf[2,2], digits = 2),
+          paste0("(", round(CCI_cdf[2,5], digits = 2), ", ", round(CCI_cdf[2,6], digits = 2), ")"),
+          round(LACE_cdf[2,2], digits = 2),
+          paste0("(", round(LACE_cdf[2,5], digits = 2), " , ", round(LACE_cdf[2,6], digits = 2), ")"),
+          round(HOS_cdf[2,2], digits = 2),
+          paste0("(", round(HOS_cdf[2,5], digits = 2), " , ", round(HOS_cdf[2,6], digits = 2), ")"))
+
+# Race/Ethnicity
+CCI_r_cdf <- data.frame(CCI_reth_emm)
+LACE_r_cdf <- data.frame(LACE_reth_emm)
+HOS_r_cdf <- data.frame(HOSP_reth_emm)
+
+bl <- c(round(CCI_r_cdf[1,2], digits = 2), 
+         paste0("(", round(CCI_cdf[1,5], digits = 2), ", ", round(CCI_r_cdf[1,6], digits = 2), ")"),
+         round(LACE_r_cdf[1,2], digits = 2),
+         paste0("(", round(LACE_r_cdf[1,5], digits = 2), " , ", round(LACE_r_cdf[1,6], digits = 2), ")"),
+         round(HOS_r_cdf[1,2], digits = 2),
+         paste0("(", round(HOS_r_cdf[1,5], digits = 2), " , ", round(HOS_r_cdf[1,6], digits = 2), ")"))
+
+as <- c(round(CCI_r_cdf[2,2], digits = 2),
+          paste0("(", round(CCI_r_cdf[2,5], digits = 2), ", ", round(CCI_r_cdf[2,6], digits = 2), ")"),
+          round(LACE_r_cdf[2,2], digits = 2),
+          paste0("(", round(LACE_r_cdf[2,5], digits = 2), " , ", round(LACE_r_cdf[2,6], digits = 2), ")"),
+          round(HOS_r_cdf[2,2], digits = 2),
+          paste0("(", round(HOS_r_cdf[2,5], digits = 2), " , ", round(HOS_r_cdf[2,6], digits = 2), ")"))
+
+cau <- c(round(CCI_r_cdf[3,2], digits = 2),
+          paste0("(", round(CCI_r_cdf[3,5], digits = 2), ", ", round(CCI_r_cdf[3,6], digits = 2), ")"),
+          round(LACE_r_cdf[3,2], digits = 2),
+          paste0("(", round(LACE_r_cdf[3,5], digits = 2), " , ", round(LACE_r_cdf[3,6], digits = 2), ")"),
+          round(HOS_r_cdf[3,2], digits = 2),
+          paste0("(", round(HOS_r_cdf[3,5], digits = 2), " , ", round(HOS_r_cdf[3,6], digits = 2), ")"))
+
+his <- c(round(CCI_r_cdf[4,2], digits = 2),
+          paste0("(", round(CCI_r_cdf[4,5], digits = 2), ", ", round(CCI_r_cdf[4,6], digits = 2), ")"),
+          round(LACE_r_cdf[4,2], digits = 2),
+          paste0("(", round(LACE_r_cdf[4,5], digits = 2), " , ", round(LACE_r_cdf[4,6], digits = 2), ")"),
+          round(HOS_r_cdf[4,2], digits = 2),
+          paste0("(", round(HOS_r_cdf[4,5], digits = 2), " , ", round(HOS_r_cdf[4,6], digits = 2), ")"))
+
+oth <- c(round(CCI_r_cdf[5,2], digits = 2),
+          paste0("(", round(CCI_r_cdf[5,5], digits = 2), ", ", round(CCI_r_cdf[5,6], digits = 2), ")"),
+          round(LACE_r_cdf[5,2], digits = 2),
+          paste0("(", round(LACE_r_cdf[5,5], digits = 2), " , ", round(LACE_r_cdf[5,6], digits = 2), ")"),
+          round(HOS_r_cdf[5,2], digits = 2),
+          paste0("(", round(HOS_r_cdf[5,5], digits = 2), " , ", round(HOS_r_cdf[5,6], digits = 2), ")"))
+
+unk <- c(round(CCI_r_cdf[6,2], digits = 2),
+          paste0("(", round(CCI_r_cdf[6,5], digits = 2), ", ", round(CCI_r_cdf[6,6], digits = 2), ")"),
+          round(LACE_r_cdf[6,2], digits = 2),
+          paste0("(", round(LACE_r_cdf[6,5], digits = 2), " , ", round(LACE_r_cdf[6,6], digits = 2), ")"),
+          round(HOS_r_cdf[6,2], digits = 2),
+          paste0("(", round(HOS_r_cdf[6,5], digits = 2), " , ", round(HOS_r_cdf[6,6], digits = 2), ")"))
+
+
+# Insurance
+CCI_i_cdf <- data.frame(CCI_ins_emm)
+LACE_i_cdf <- data.frame(LACE_ins_emm)
+HOS_i_cdf <- data.frame(HOSP_ins_emm)
+
+care <- c(round(CCI_i_cdf[1,2], digits = 2), 
+         paste0("(", round(CCI_i_cdf[1,5], digits = 2), ", ", round(CCI_i_cdf[1,6], digits = 2), ")"),
+         round(LACE_i_cdf[1,2], digits = 2),
+         paste0("(", round(LACE_i_cdf[1,5], digits = 2), " , ", round(LACE_i_cdf[1,6], digits = 2), ")"),
+         round(HOS_i_cdf[1,2], digits = 2),
+         paste0("(", round(HOS_i_cdf[1,5], digits = 2), " , ", round(HOS_i_cdf[1,6], digits = 2), ")"))
+
+nocare <- c(round(CCI_i_cdf[2,2], digits = 2),
+          paste0("(", round(CCI_i_cdf[2,5], digits = 2), ", ", round(CCI_i_cdf[2,6], digits = 2), ")"),
+          round(LACE_i_cdf[2,2], digits = 2),
+          paste0("(", round(LACE_i_cdf[2,5], digits = 2), " , ", round(LACE_i_cdf[2,6], digits = 2), ")"),
+          round(HOS_i_cdf[2,2], digits = 2),
+          paste0("(", round(HOS_i_cdf[2,5], digits = 2), " , ", round(HOS_i_cdf[2,6], digits = 3), ")"))
+
+# make dataframe
+maintab <- rbind(fem, male,
+                 care, nocare,
+                 bl, as, cau, his, oth, unk)
+rownames(maintab) <- c("Female", "Male", "Medicare/Medicaid", "No Medicare/Medicaid",
+                       "African Amer/Black", "Asian", "Caucasian/White", "Hispanic/Latino",
+                       "Other/Multiracial", "Unavailable/Unknown")
+
+# make kable
+main_kbl <- kbl(maintab, escape = F,
+                col.names = rep(c("Mean", "95% CI"), times = 3)) %>%
+  kable_styling("striped") %>%
+  add_header_above(c(" ", "CCI" = 2, "LACE" = 2, "HOSPITAL" = 2)) %>%
+  pack_rows("Gender", 1, 2) %>%
+  pack_rows("Insurance", 3, 4) %>%
+  pack_rows("Race/Ethnicity", 5, 10)
+
+```  
+  
+
+### Interactions    
+
+#### LACE
+
+Two-way interaction of Year, Insurance  
+```{r lace_yrins}
+emtrends(LACE_cont, pairwise ~ Insurance, var = "Year")
+
+g <- emmip(LACE_cont, Insurance ~ Year, cov.reduce = range,
+           ylab = "Predicted LACE") 
+g1 <- g + aes(linetype=Insurance, shape=Insurance) + 
+  scale_color_grey() + 
+  theme_minimal() + 
+  ggtitle("Interaction of Insurance and Year")
+```
+  
+Two-way interaction of Race/Ethnicity, Insurance
+```{r}
+emmeans(LACE_cont, pairwise ~ Race_Eth | Insurance)
+
+p <- emmip(LACE_cont, Race_Eth ~ Insurance,
+      xlab = "Insurance Status", ylab = "Predicted LACE")
+p1 <- p + aes(linetype=Race_Eth, shape=Race_Eth) + 
+  scale_color_grey() + 
+  scale_x_discrete(labels=c("Medicare/Medicaid", "No Medicare/Medicaid")) + 
+  theme_minimal() + 
+  ggtitle("Interaction of Race/Ethnicity and Insurance")
+```
+
+```{r LACEint, fig.cap="LACE Index: Demographic Factor Interactions"}
+# choose one
+grid.arrange(g1, p1, ncol=2)
+#grid.arrange(g1, p1, ncol=1)
+```
+
+#### HOSPITAL
+
+
+two-way interactions to explore include `Year`:`Race/Ethnicity`, `PatientAge`:`Insurance`, `Year`:`PatientAge`, `Race/Ethnicity`:`Insurance`  
+
+
+three-way interaction between `PatientAge`:`Race/Ethnicity`:`Insurance`.  
+
+
+
+  
+***    
+  
+## Readmission Analysis
+Explore any patterns related to readmission status. These records are classified as an original admission ("O"), readmission within 30 days of discharge after original hospital stay ("Y"), or readmission outside the 30-day window after original discharge ("N").
+
+```{r readmit_table}
+snf_tbl <- snf_data_a %>%
+  select(c(Year, PatientAge, Gender, Race_Eth, Insurance, CCI, LACE, HOSPITAL, Readmit)) %>%
+  group_by(Year, Gender, Race_Eth, Insurance, Readmit) %>%
+  summarise(n = n(), meanAge = mean(PatientAge), 
+            meanCCI = mean(CCI), meanLACE = mean(LACE), meanHOS = mean(HOSPITAL)) %>%
+  pivot_wider(names_from = c(Readmit), values_from = c(n, meanAge, meanCCI, meanLACE, meanHOS))
+```
+
+When accounting for all demographics, many sub-group samples are size N = 0. In order to preserve differences between type of admission, we can aggregate over Race/Ethnicity and note this topic as worthy of study with a future dataset.  
+  
+```{r readmit_table_agg}
+snf_tbl_nore <- snf_data_a %>%
+  select(c(Year, PatientAge, Gender, Insurance, CCI, LACE, HOSPITAL, Readmit)) %>%
+  group_by(Year, Gender, Insurance, Readmit) %>%
+  summarise(n = n(), meanAge = mean(PatientAge), 
+            meanCCI = mean(CCI), meanLACE = mean(LACE), meanHOS = mean(HOSPITAL)) %>%
+  pivot_wider(names_from = c(Readmit), values_from = c(n, meanAge, meanCCI, meanLACE, meanHOS))
+```
+
+The only group with N=0 sample size is Men readmitted outside 30 days without Medicare/Medicaid in 2017. 
+
+Let's look at visualizations to explore any patterns between readmission status and calculated scores or demographic factors. 
+
+```{r score_piv_full}
+score_piv_full <- snf_data_a %>% 
+  dplyr::select(SternClientID, Year, PatientAge, Gender, Race_Eth, Insurance, CCI, LACE, HOSPITAL, Readmit) %>%
+  pivot_longer(!c(SternClientID, Year, PatientAge, Gender, Race_Eth, Insurance, Readmit), names_to = "score", values_to = "val") 
+```
+
+
+```{r readmit_eda}
+# Readmission by score, aggregated
+ggplot(score_piv_full, aes(x = Readmit, y = val, fill = Readmit)) + 
+  geom_boxplot() + 
+  labs(x = "Readmit Status", y = "Score") + 
+  theme_minimal() + 
+  facet_wrap(vars(score)) + 
+  ggtitle("Boxplots of Calculated Score by (Re)admission Status")
+
+```
+When aggregating across all demographics, there are no visually striking differences in readmission status across score. 
+
+```{r filter_readmits}
+# filter by score
+score_piv_CCI <- score_piv_full %>%
+  filter(score == 'CCI') %>%
+  select(!score)
+
+score_piv_LACE <- score_piv_full %>%
+  filter(score == 'LACE') %>%
+  select(!score)
+
+score_piv_HOS <- score_piv_full %>%
+  filter(score == 'HOSPITAL') %>%
+  select(!score)
+
+```
+
+```{r full_boxplots}
+# boxplots by Year
+ggplot(score_piv_CCI, aes(x = as.factor(Year), y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Year", y = "Score") + 
+  ggtitle("CCI Score by (Re)Admission Status, Year")
+
+ggplot(score_piv_LACE, aes(x = as.factor(Year), y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Year", y = "Score") + 
+  ggtitle("LACE Score by (Re)Admission Status, Year")
+
+ggplot(score_piv_HOS, aes(x = as.factor(Year), y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Year", y = "Score") + 
+  ggtitle("HOSPITAL Score by (Re)Admission Status, Year")
+
+# boxplots by gender
+ggplot(score_piv_CCI, aes(x = Gender, y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Gender", y = "Score") + 
+  ggtitle("CCI Score by (Re)Admission Status, Gender")
+
+ggplot(score_piv_LACE, aes(x = Gender, y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Gender", y = "Score") + 
+  ggtitle("LACE Score by (Re)Admission Status, Gender")
+
+ggplot(score_piv_HOS, aes(x = Gender, y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Gender", y = "Score") + 
+  ggtitle("HOSPITAL Score by (Re)Admission Status, Gender")
+
+# boxplots by age
+ggplot(score_piv_CCI, aes(x = PatientAge, y = val, fill = Readmit)) + 
+  geom_violin(orientation = "y", draw_quantiles = c(0.25, 0.5, 0.75)) + theme_minimal() +
+  labs(x = "Age", y = "Score") + 
+  facet_grid(vars(Readmit)) + 
+  ggtitle("CCI Score by (Re)Admission Status, Age")
+
+ggplot(score_piv_LACE, aes(x = PatientAge, y = val, fill = Readmit)) + 
+  geom_violin(orientation = "y", draw_quantiles = c(0.25, 0.5, 0.75)) + theme_minimal() +
+  labs(x = "Age", y = "Score") + 
+  facet_grid(vars(Readmit)) + 
+  ggtitle("LACE Score by (Re)Admission Status, Age")
+
+ggplot(score_piv_HOS, aes(x = PatientAge, y = val, fill = Readmit)) + 
+  geom_violin(orientation = "y", draw_quantiles = c(0.25, 0.5, 0.75)) + theme_minimal() +
+  labs(x = "Age", y = "Score") + 
+  facet_grid(vars(Readmit)) + 
+  ggtitle("HOSPITAL Score by (Re)Admission Status, Age")
+
+# boxplots by insurance
+ggplot(score_piv_CCI, aes(x = Insurance, y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Insurance Status", y = "Score") + 
+  ggtitle("CCI Score by (Re)Admission Status, Insurance Status")
+
+ggplot(score_piv_LACE, aes(x = Insurance, y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Insurance Status", y = "Score") + 
+  ggtitle("LACE Score by (Re)Admission Status, Insurance Status")
+
+ggplot(score_piv_HOS, aes(x = Insurance, y = val, fill = Readmit)) + 
+  geom_boxplot() + theme_minimal() + 
+  labs(x = "Insurance Status", y = "Score") + 
+  ggtitle("HOSPITAL Score by (Re)Admission Status, Insurance Status")
+```
+
+
+
+
+### Model Fitting
+Check for correlation among scores:  
+```{r cors}
+scores <- snf_data_a %>% select(CCI, LACE, HOSPITAL)
+
+cor(scores, method = "pearson")
+cor(scores, method = "kendall")
+cor(scores, method = "spearman")
+
+```
+
+  
+Model fitting starts with just a baseline model without any predictors. Since the response `Readmit` has three categories, model class of choice is a multinomial log-linear model.  
+```{r mod_fits}
+
+mod0 <- nnet::multinom(Readmit ~ 1, data = snf_data_a)
+mod_score <- nnet::multinom(Readmit ~ CCI + LACE + HOSPITAL, data = snf_data_a)
+
+mod_yr <- nnet::multinom(Readmit ~ Year, data = snf_data_a)
+mod_yr_score <- nnet::multinom(Readmit ~ Year + CCI + LACE + HOSPITAL, data = snf_data_a)
+
+mod_age <- nnet::multinom(Readmit ~ PatientAge, data = snf_data_a)
+mod_age_score <- nnet::multinom(Readmit ~ PatientAge + CCI + LACE + HOSPITAL, data = snf_data_a)
+
+mod_gen <- nnet::multinom(Readmit ~ Gender, data = snf_data_a)
+mod_gen_score <- nnet::multinom(Readmit ~ Gender + CCI + LACE + HOSPITAL, data = snf_data_a) 
+
+mod_ins <- nnet::multinom(Readmit ~ Insurance, data = snf_data_a)
+mod_ins_score <- nnet::multinom(Readmit ~ Insurance + CCI + LACE + HOSPITAL, data = snf_data_a)
+```
+
+Goodness of Fit Test
+```{r deviance}
+# Null mod against Readmit ~ Year
+1 - pchisq(mod0$deviance - mod_yr$deviance, df = 2)
+1 - pchisq(mod0$deviance - mod_score$deviance, df = 6)
+1 - pchisq(mod_score$deviance - mod_yr_score$deviance, df = 2)
+```  
+
+
+We may consider there to be no meaningful clinical difference between an original admission and a readmission outside 30 days. Consequently, combine the "O" and "N" factor levels of Readmit and treat the response as a binary variable. The appropriate model class is logistic regression.     
+
+```{r readmitlevels}
+snf_data_b <- snf_data_a %>%
+  mutate(Readmit = as.character(Readmit)) %>%
+  mutate(Readmit = ifelse(Readmit == "O", "N", Readmit)) %>%
+  mutate(Readmit = as.factor(Readmit))
+
+snf_tbl_b <- snf_data_b %>%
+  select(c(Year, PatientAge, Gender, Insurance, CCI, LACE, HOSPITAL, Readmit)) %>%
+  group_by(Year, Gender, Insurance, Readmit) %>%
+  summarise(n = n(), meanAge = mean(PatientAge), 
+            meanCCI = mean(CCI), meanLACE = mean(LACE), meanHOS = mean(HOSPITAL)) %>%
+  pivot_wider(names_from = c(Readmit), values_from = c(n, meanAge, meanCCI, meanLACE, meanHOS))
+```
+  
+```{r logmods}  
+fit0 <- glm(Readmit ~ 1, family = binomial(link = "logit"), data = snf_data_b)
+d0 <- broom::glance(fit0) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+fit_score <- glm(Readmit ~ CCI + LACE + HOSPITAL, family = binomial(link = "logit"), data = snf_data_b)
+dscore <- broom::glance(fit_score) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+
+fit_yr <- glm(Readmit ~ Year, family = binomial(link = "logit"), data = snf_data_b)
+dyr <- broom::glance(fit_yr) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+fit_yr_score <- glm(Readmit ~ Year + CCI + LACE + HOSPITAL, family = binomial(link = "logit"), data = snf_data_b)
+dyrsc <- broom::glance(fit_yr_score) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+
+fit_age <- glm(Readmit ~ PatientAge, family = binomial(link = "logit"), data = snf_data_b)
+da <- broom::glance(fit_age) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+fit_age_score <- glm(Readmit ~ PatientAge + CCI + LACE + HOSPITAL, family = binomial(link = "logit"), data = snf_data_b)
+das <- broom::glance(fit_age_score) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+
+fit_gen <- glm(Readmit ~ Gender, family = binomial(link = "logit"), data = snf_data_b)
+dg <- broom::glance(fit_gen) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+fit_gen_score <- glm(Readmit ~ Gender + CCI + LACE + HOSPITAL, family = binomial(link = "logit"), data = snf_data_b)
+dgsc <- broom::glance(fit_gen_score) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+
+fit_ins <- glm(Readmit ~ Insurance, family = binomial(link = "logit"), data = snf_data_b)
+di <- broom::glance(fit_ins) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+fit_ins_score <- glm(Readmit ~ Insurance + CCI + LACE + HOSPITAL, family = binomial(link = "logit"), data = snf_data_b)
+disc <- broom::glance(fit_ins_score) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+
+fit_add <- glm(Readmit ~ CCI + LACE + HOSPITAL + Year + PatientAge + 
+                  Gender  + Insurance, family = binomial(link = "logit"), data = snf_data_b)
+dadd <- broom::glance(fit_add) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+fit_full <- glm(Readmit ~ CCI * LACE * HOSPITAL * Year * PatientAge * 
+                  Gender * Insurance, family = binomial(link = "logit"), data = snf_data_b)
+dfull <- broom::glance(fit_full) %>% select(c(logLik, AIC, BIC, deviance, df.residual))
+
+
+```
+
+Model Selection: perform drop-in-deviance tests to compare nested models  
+```{r mod_select}
+mod_tbl <- rbind(d0, dscore, dyr, dgsc, da, das,
+                 dg, dgsc, di, disc, dadd, dfull)
+mod_tbl$Model <- c("Null Model", "Scores", "Year", "Scores + Year", "Age", "Scores + Age", "Gender", 
+                       "Scores + Gender", "Insurance", "Scores + Insurance", "Additive Model", "Saturated Model")
+mod_tbl <- mod_tbl %>%
+  dplyr::relocate(Model)
+mod_tbl
+
+# Drop-in-deviance test to compare saturated model to additive model
+anova(fit_add, fit_full, test = "Chisq")
+
+# Goodness of fit tests for both models
+pchisq(fit_full$deviance, fit_full$df.residual, lower.tail = FALSE)
+pchisq(fit_add$deviance, fit_add$df.residual, lower.tail = FALSE)
+
+
+```  
+
+Despite the drop-in-deviance test determining that the saturated model better fits the data, the additive model has a lower AIC. The additional benefit of parsimony (8 parameters in the additive model instead of 128 parameters in the full model) allows us to proceed to model diagnostics for the additive model.  
+  
+```{r mod_diag}
+summary(fit_add)
+anova(fit_gen_score, fit_add, test = "Chisq")
+```
+
+Based on adjusted p-values, compare the additive model to the model including just scores and gender. The simpler model has higher AIC, and the drop-in-deviance test favors the larger model, so we'll stick with the additive model. The model can be written as:  
+
+$$
+\begin{aligned}
+log(\frac{p_i}{1-p_i}) &= \beta_0 + \beta_1*CCI_i + \beta_2 * LACE_i + \beta_3 * HOSPITAL_i + \beta_4 * Year_i + \beta_5* Age_i + \beta_6 * Gender_{Male} + \beta_7 * Insurance_{No Medicare/Medicaid} \\
+&= 14.028 - 0.057*CCI_i + 0.094 * LACE_i + 0.202 * HOSPITAL_i - 0.009 * Year_i + 0.005* Age_i + 0.294 * Gender_{Male} - 0.141 * Insurance_{No Medicare/Medicaid}
+\end{aligned}
+$$
+
+where $p_i$ is the probability that a given record in the dataset is a readmission within 30 days.
+
+```{r fit_diag}
+
+
+```
+
+  
+***    
+  
+
+## Conclusions      
+
+
+
+***  
+
+## References  
+
+Benjamini, Y. and Hochberg, Y. (1995). Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing. Journal of the Royal Statistical Society: Series B (Methodological), 57: 289-300.  https://doi.org/10.1111/j.2517-6161.1995.tb02031.x
+  
+Russell V. Lenth (2022). emmeans: Estimated Marginal Means, aka Least-Squares
+Means. R package version 1.7.3. https://CRAN.R-project.org/package=emmeans

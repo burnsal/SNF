@@ -1,0 +1,208 @@
+# Exploratory Data Analysis
+
+Our primary research interest is whether or not the probability of readmission is associated with calculated score. We calculate the odds $\frac{p}{1-p}$ empirical log odds $log(\frac{p}{1-p})$ of readmissions associated with each level of each acuity score and visualize the potential associations, where $p$ is the probability that a record is of a readmission within 30 days. Summary tables for CCI, LACE, and HOSPITAL can be found in [Appendix A](#AppendixA): .
+
+```{r readmit_CCI}
+readmit_cci <- snf_data_a %>%
+  group_by(CCI) %>%
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit))
+```
+
+```{r readmit_LACE}
+readmit_lace <- snf_data_a %>%
+  group_by(LACE) %>%
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit))
+```
+
+```{r readmit_HOS}
+readmit_hos <- snf_data_a %>%
+  group_by(HOSPITAL) %>%
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit))
+
+```
+
+```{r readmit_scores_plot}
+# combine dfs together
+cci_bind <- readmit_cci %>%
+  mutate(Score = rep("CCI")) %>%
+  rename(Value = CCI) %>%
+  relocate(Score)
+
+lace_bind <- readmit_lace %>%
+  mutate(Score = rep("LACE")) %>%
+  rename(Value = LACE) %>%
+  relocate(Score)
+
+hos_bind <- readmit_hos %>%
+  mutate(Score = rep("HOSPITAL")) %>%
+  rename(Value = HOSPITAL) %>%
+  relocate(Score)
+
+readmit_data <- bind_rows(cci_bind, lace_bind, hos_bind)
+
+# remove -inf rows for plotting
+readmit_plot <- readmit_data %>% na_if(-Inf)
+
+# plot empirical logits 
+ggplot(readmit_plot, aes(x = Value, y = logit.Readmit, shape = Score, label = Value)) + 
+  geom_point(alpha=0.4, size = 3) + 
+  geom_text() +  geom_line(alpha=0.3) + 
+  theme_minimal() + 
+  labs(x = "Acuity Score", y = "Empirical Logit") + 
+  facet_wrap(vars(Score)) + 
+  ggtitle("Empirical Logits by Acuity Score")
+```
+  
+  
+A linear association between CCI score and empirical logit is not clear, especially considering score values greater than 8. A linear association between HOSPITAL score and empirical logit is quite pronounced; while the linear association between LACE score and empirical logit is also quite strong, we can observe two potential outliers for LACE score values of 3 and 18.  
+  
+We also want to consider whether or not probability of readmission changes over time, with respect to acuity score. Various plots examining readmission by score over year can be found in [Appendix B](#AppendixB); no interaction between score and year is apparent.  
+```{r readmit_yr}
+readmit_yr_cci <- snf_data_a %>%
+  group_by(CCI, Year) %>%
+  rename(Value = CCI) %>%
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit)) %>%
+  mutate(Score = rep("CCI"))
+
+readmit_yr_lace <- snf_data_a %>%
+  group_by(LACE, Year) %>%
+  rename(Value = LACE) %>%
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit)) %>%
+  mutate(Score = rep("LACE"))
+
+readmit_yr_hos <- snf_data_a %>%
+  group_by(HOSPITAL, Year) %>%
+  rename(Value = HOSPITAL) %>%
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit)) %>%
+  mutate(Score = rep("HOSPITAL"))
+
+```
+
+
+We are also interested in the potential effect demographic factors have on the relationship between readmission rate and acuity score. Due to the small sample sizes from considering multiple demographics together, we will disaggregate readmission by each acuity score over one demographic factor (Gender, Race/Ethnicity, Insurance) at a time. Tables and plots for readmission logits by demographic covariates are available in [Appendix C](#AppendixC). Sample sizes among groups for Race/Ethnicity are too small for this factor to be considered in model fitting; however, previous analysis showed strong evidence that Race/Ethnicity was associated with differences in calculated scores while controlling for other factors. Consequently, this factor should be examined in further study of readmission rates.
+
+```{r readmit_cci_demo}
+readmit_cci_gen <- snf_data_a %>%
+  group_by(CCI, Gender) %>%
+  rename(Value = Gender) %>%
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit)) %>%
+  mutate(Demo = rep("Gender"))
+
+readmit_cci_re <- snf_data_a %>%
+  group_by(CCI, Race_Eth) %>%
+  rename(Value = Race_Eth) %>% 
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit)) %>%
+  mutate(Demo = rep("Race/Ethnicity"))
+
+readmit_cci_ins <- snf_data_a %>%
+  group_by(CCI, Insurance) %>%
+  rename(Value = Insurance) %>%
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit)) %>%
+  mutate(Demo = rep("Insurance"))
+
+```
+
+```{r readmit_lace_demo}
+readmit_lace_gen <- snf_data_a %>%
+  group_by(LACE, Gender) %>%
+  rename(Value = Gender) %>%
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit)) %>%
+  mutate(Demo = rep("Gender"))
+
+readmit_lace_re <- snf_data_a %>%
+  group_by(LACE, Race_Eth) %>%
+  rename(Value = Race_Eth) %>% 
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit)) %>%
+  mutate(Demo = rep("Race/Ethnicity"))
+
+readmit_lace_ins <- snf_data_a %>%
+  group_by(LACE, Insurance) %>%
+  rename(Value = Insurance) %>%
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit)) %>%
+  mutate(Demo = rep("Insurance"))
+
+
+  
+```
+  
+  
+```{r readmit_hos_demo}
+readmit_hos_gen <- snf_data_a %>%
+  group_by(HOSPITAL, Gender) %>%
+  rename(Value = Gender) %>%
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit)) %>%
+  mutate(Demo = rep("Gender"))
+
+readmit_hos_re <- snf_data_a %>%
+  group_by(HOSPITAL, Race_Eth) %>%
+  rename(Value = Race_Eth) %>% 
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit)) %>%
+  mutate(Demo = rep("Race/Ethnicity"))
+
+readmit_hos_ins <- snf_data_a %>%
+  group_by(HOSPITAL, Insurance) %>%
+  rename(Value = Insurance) %>%
+  summarize(meanAge = mean(PatientAge), n=n(), 
+            n.Readmit = sum(Readmit == "Y"),
+            p.Readmit = sum(Readmit == "Y")/n,
+            odds.Readmit = p.Readmit / (1 - p.Readmit),
+            logit.Readmit = log(odds.Readmit)) %>%
+  mutate(Demo = rep("Insurance"))
+
+```  

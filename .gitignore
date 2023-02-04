@@ -5,6 +5,11 @@
 # Session Data files
 .RData
 
+# Bookdown dirs
+/_bookdown_files/
+/_book/
+/assets/
+
 # Raw data
 /data/
 

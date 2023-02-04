@@ -1,0 +1,318 @@
+# Appendices
+
+## Appendix A: Summary Statistics Tables {#AppendixA}
+
+```{r appendA}
+readmit_cci %>% 
+  kbl(caption = "Readmission Empirical Statistics by CCI Score", digits=3,
+      col.names = c("CCI Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_classic_2(full_width = F)
+
+
+readmit_lace %>% 
+  kbl(caption = "Readmission Empirical Statistics by LACE Score", digits=3,
+      col.names = c("LACE Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_classic_2(full_width = F)
+
+
+readmit_hos %>% 
+  kbl(caption = "Readmission Empirical Statistics by HOSPITAL Score", digits=3,
+      col.names = c("HOS Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_classic_2(full_width = F)
+```
+  
+## Appendix B: Plots of Empirical Logits by Year, Score {#AppendixB}
+```{r appendB}
+readmit_yr <- bind_rows(readmit_yr_cci, readmit_yr_lace, readmit_yr_hos) 
+
+readmit_plot <- readmit_yr %>% na_if(-Inf)
+ggplot(readmit_plot, aes(x = Value, y = logit.Readmit, shape = Score)) + 
+  geom_point(alpha = 0.4, size = 3) + geom_line() + 
+  facet_wrap(vars(Year)) + 
+  theme_minimal() + 
+  labs(x = "Acuity Score", y = "Empirical Logit", shape = "Score") + 
+  ggtitle("Empirical Logit by Calculated Score, Year")
+
+yr_cci_plot <- readmit_yr_cci %>% na_if(-Inf)
+ggplot(yr_cci_plot, aes(x = Value, y = logit.Readmit, col= as.factor(Year))) + 
+  geom_point(alpha = 0.4, size = 3) + geom_line() + 
+  theme_minimal() + 
+  labs(x = "CCI Score", y = "Empirical Logit", col = "Year") + 
+  ggtitle("Empirical Logit by CCI Score, Year")
+
+yr_lace_plot <- readmit_yr_lace %>% na_if(-Inf)
+ggplot(yr_lace_plot, aes(x = Value, y = logit.Readmit, col= as.factor(Year))) + 
+  geom_point(alpha = 0.4, size = 3) + geom_line() + 
+  theme_minimal() + 
+  labs(x = "LACE Score", y = "Empirical Logit", col = "Year") + 
+  ggtitle("Empirical Logit by LACE Score, Year")
+
+yr_hos_plot <- readmit_yr_hos %>% na_if(-Inf)
+ggplot(yr_hos_plot, aes(x = Value, y = logit.Readmit, col= as.factor(Year))) + 
+  geom_point(alpha = 0.4, size = 3) + geom_line() + 
+  theme_minimal() + 
+  labs(x = "HOSP Score", y = "Empirical Logit", col = "Year") + 
+  ggtitle("Empirical Logit by HOSPITAL Score, Year")
+```
+  
+## Appendix C: Demographic EDA Tables, Plots {#AppendixC}  
+```{r appendc_cci}
+readmit_cci_gen %>% 
+  select(!Demo) %>%
+  kbl(caption = "Readmission Empirical Statistics by CCI Score, Gender", digits=3,
+      col.names = c("CCI Score", "Gender", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_minimal(full_width = F) %>%
+  column_spec(1, bold=T)
+
+readmit_cci_re %>% 
+  select(!Demo) %>%
+  kbl(caption = "Readmission Empirical Statistics by CCI Score, Race/Ethnicity", digits=3,
+      col.names = c("CCI Score", "Race/Ethnicity", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_minimal(full_width = F) %>%
+  column_spec(1, bold=T) 
+
+readmit_cci_ins %>% 
+  select(!Demo) %>%
+  kbl(caption = "Readmission Empirical Statistics by CCI Score, Insurance", digits=3,
+      col.names = c("CCI Score", "Insurance", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_minimal(full_width = F) %>%
+  column_spec(1, bold=T) 
+
+cci_gen_plot <- readmit_cci_gen %>% na_if(-Inf)
+ggplot(cci_gen_plot, aes(x = CCI, y=logit.Readmit, shape=Value, label=CCI)) + 
+  geom_point(alpha = 0.3, size = 5) + geom_line(alpha = 0.3) +
+  geom_text() + 
+  labs(x = "CCI Score", y = "Empirical Logit", shape = "Gender") + 
+  theme_minimal() + ggtitle("Empirical Logit by CCI Score, Gender")
+
+cci_re_plot <- readmit_cci_re %>% na_if(-Inf)
+ggplot(cci_re_plot, aes(x = CCI, y=logit.Readmit, shape=Value, label=CCI)) + 
+  geom_point(alpha = 0.3, size = 5) + geom_line(alpha = 0.3) + 
+  geom_text() + 
+  labs(x = "CCI Score", y = "Empirical Logit", shape = "Race/Ethnicity") + 
+  theme_minimal() + ggtitle("Empirical Logit by CCI Score, Race/Ethnicity")
+
+cci_ins_plot <- readmit_cci_ins %>% na_if(-Inf)
+ggplot(cci_ins_plot, aes(x = CCI, y=logit.Readmit, shape=Value, label=CCI)) + 
+  geom_point(alpha = 0.3, size = 5) + geom_line(alpha = 0.3) + 
+  geom_text() + 
+  labs(x = "CCI Score", y = "Empirical Logit", shape = "Insurance") + 
+  theme_minimal() + ggtitle("Empirical Logit by CCI Score, Insurance")
+```
+
+```{r appendc_lace}
+readmit_lace_gen %>% 
+  select(!Demo) %>%
+  kbl(caption = "Readmission Empirical Statistics by LACE Score, Gender", digits=3,
+      col.names = c("LACE Score", "Gender", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_minimal(full_width = F) %>%
+  column_spec(1, bold=T) 
+
+readmit_lace_re %>% 
+  select(!Demo) %>%
+  kbl(caption = "Readmission Empirical Statistics by LACE Score, Race/Ethnicity", digits=3,
+      col.names = c("LACE Score", "Race/Ethnicity", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_minimal(full_width = F) %>%
+  column_spec(1, bold=T) 
+
+readmit_lace_ins %>% 
+  select(!Demo) %>%
+  kbl(caption = "Readmission Empirical Statistics by LACE Score, Insurance", digits=3,
+      col.names = c("LACE Score", "Insurance", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_minimal(full_width = F) %>%
+  column_spec(1, bold=T) 
+
+
+lace_gen_plot <- readmit_lace_gen %>% na_if(-Inf)
+ggplot(lace_gen_plot, aes(x = LACE, y=logit.Readmit, shape=Value, label=LACE)) + 
+  geom_point(alpha = 0.3, size = 5) + geom_line(alpha = 0.3) +
+  geom_text() + 
+  labs(x = "LACE Score", y = "Empirical Logit", shape = "Gender") + 
+  theme_minimal() + ggtitle("Empirical Logit by LACE Score, Gender")
+
+lace_re_plot <- readmit_lace_re %>% na_if(-Inf)
+ggplot(lace_re_plot, aes(x = LACE, y=logit.Readmit, shape=Value, label=LACE)) + 
+  geom_point(alpha = 0.3, size = 5) + geom_line(alpha = 0.3) + 
+  geom_text() + 
+  labs(x = "LACE Score", y = "Empirical Logit", shape = "Race/Ethnicity") + 
+  theme_minimal() + ggtitle("Empirical Logit by LACE Score, Race/Ethnicity")
+
+lace_ins_plot <- readmit_lace_ins %>% na_if(-Inf)
+ggplot(lace_ins_plot, aes(x = LACE, y=logit.Readmit, shape=Value, label=LACE)) + 
+  geom_point(alpha = 0.3, size = 5) + geom_line(alpha = 0.3) + 
+  geom_text() + 
+  labs(x = "LACE Score", y = "Empirical Logit", shape = "Insurance") + 
+  theme_minimal() + ggtitle("Empirical Logit by LACE Score, Insurance")
+```
+
+
+```{r appendc_hos}
+readmit_hos_gen %>% 
+  select(!Demo) %>%
+  kbl(caption = "Readmission Empirical Statistics by HOSPITAL Score, Gender", digits=3,
+      col.names = c("HOSP Score", "Gender", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_minimal(full_width = F) %>%
+  column_spec(1, bold=T) 
+
+readmit_hos_re %>% 
+  select(!Demo) %>%
+  kbl(caption = "Readmission Empirical Statistics by HOSPITAL Score, Race/Ethnicity", digits=3,
+      col.names = c("HOSP Score", "Race/Ethnicity", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_minimal(full_width = F) %>%
+  column_spec(1, bold=T) 
+
+readmit_hos_ins %>% 
+  select(!Demo) %>%
+  kbl(caption = "Readmission Empirical Statistics by HOSPITAL Score, Insurance", digits=3,
+      col.names = c("HOSP Score", "Insurance", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
+  kable_minimal(full_width = F) %>%
+  column_spec(1, bold=T)
+
+hos_gen_plot <- readmit_hos_gen %>% na_if(-Inf)
+ggplot(hos_gen_plot, aes(x = HOSPITAL, y=logit.Readmit, shape=Value, label=HOSPITAL)) + 
+  geom_point(alpha = 0.3, size = 5) + geom_line(alpha = 0.3) +
+  geom_text() + 
+  labs(x = "HOSP Score", y = "Empirical Logit", shape = "Gender") + 
+  theme_minimal() + ggtitle("Empirical Logit by HOSPITAL Score, Gender")
+
+hos_re_plot <- readmit_hos_re %>% na_if(-Inf)
+ggplot(hos_re_plot, aes(x = HOSPITAL, y=logit.Readmit, shape=Value, label=HOSPITAL)) + 
+  geom_point(alpha = 0.3, size = 5) + geom_line(alpha = 0.3) + 
+  geom_text() + 
+  labs(x = "HOSP Score", y = "Empirical Logit", shape = "Race/Ethnicity") + 
+  theme_minimal() + ggtitle("Empirical Logit by HOSPITAL Score, Race/Ethnicity")
+
+hos_ins_plot <- readmit_hos_ins %>% na_if(-Inf)
+ggplot(hos_ins_plot, aes(x = HOSPITAL, y=logit.Readmit, shape=Value, label=HOSPITAL)) + 
+  geom_point(alpha = 0.3, size = 5) + geom_line(alpha = 0.3) + 
+  geom_text() + 
+  labs(x = "HOSP Score", y = "Empirical Logit", shape = "Insurance") + 
+  theme_minimal() + ggtitle("Empirical Logit by HOSPITAL Score, Insurance")
+```
+
+
+## Appendix D: CCI Model Residual Diagnostics {#AppendixD}
+
+Base CCI model: $log(\frac{p}{1-p}) = b_0 + b_1*CCI$ :  
+```{r base_cci_diag}
+summary(CCI_mod0)
+
+CCI_mod0_plots <- data.frame(CCI = seq(0, 15, 1),
+                             Resids = resid(CCI_mod0, type = "deviance"),
+                             Fits = fitted(CCI_mod0))
+
+ggplot(CCI_mod0_plots, aes(x = Fits, y = Resids, label = CCI)) + 
+  geom_point(size = 3, alpha = 0.3) + geom_text(fontface = "bold") + 
+  theme_minimal() + 
+  ggtitle("Deviance Residuals by Fitted Values")
+
+# Goodness-of-Fit Test
+cci_modfit <- pchisq(CCI_mod0$deviance, df=14, lower.tail = FALSE)
+```
+
+The results of the $\chi^2_{14}$ goodness-of-fit test (p = `r round(cci_modfit, 3)`) indicate significant evidence of lack of fit. This is likely due to the larger residuals for CCI values 13-14; could refit the model excluding this data which will result in better model fit, but it will not change the practical conclusion reached regarding the association between CCI score and risk of readmission.  
+
+Another comparison we can make to this model is to a null (intercept-only) that can be written as: $log(\frac{p_{CCI_i}}{1-p_{CCI_{i}}}) = \beta_0$  
+  
+```{r cci_null}
+cci_nullmod <- glm(formula = cbind(n.Readmit, n - n.Readmit) ~ 1, 
+                  family = binomial(link = "logit"), data = readmit_cci_cut)
+
+summary(cci_nullmod)
+
+CCI_nullmod_plots <- data.frame(CCI = seq(0, 15, 1),
+                             Resids = resid(cci_nullmod, type = "deviance"),
+                             Fits = fitted(cci_nullmod))
+
+ggplot(CCI_nullmod_plots, aes(x = CCI, y = Resids, label = CCI)) + 
+  geom_point(size = 3, alpha = 0.3) + geom_text(fontface = "bold") + 
+  theme_minimal() + 
+  ggtitle("Null Model Deviance Residuals")
+
+# Goodness-of-Fit Test
+cci_nullfit <- pchisq(cci_nullmod$deviance, df=15, lower.tail = FALSE)
+
+# Drop-in-deviance test for model comparison
+anova(cci_nullmod, CCI_mod0, test="Chisq")
+```  
+
+The p-value (p = `r round(cci_nullfit)`) for the goodness-of-fit test on the null model is borderline, but the drop-in-deviance model comparison test does not provide strong evidence that the null model is a better fit than modeling CCI score to the data.  
+
+  
+## Appendix E: LACE Model Residual Diagnostics {#AppendixE}
+```{r base_lace_diag}
+# Base model with full data
+summary(lace_mod0)
+
+lace_mod0_plots <- data.frame(LACE = seq(2, 19, 1),
+                             Resids = resid(lace_mod0, type = "deviance"),
+                             Fits = fitted(lace_mod0))
+
+ggplot(lace_mod0_plots, aes(x = Fits, y = Resids, label = LACE)) + 
+  geom_point(size = 3, alpha = 0.3) + geom_text(fontface = "bold") + 
+  theme_minimal() + 
+  ggtitle("LACE Mod 0 Deviance Residuals by Fitted Values")
+
+lace_mod0_gof <- pchisq(lace_mod0$deviance, df=16, lower.tail = FALSE)
+
+# Base model without LACE=12
+summary(lace_mod1)
+
+lace_mod1_plots <- data.frame(LACE = c(seq(2, 11, 1), seq(13, 19, 1)),
+                             Resids = resid(lace_mod1, type = "deviance"),
+                             Fits = fitted(lace_mod1))
+
+ggplot(lace_mod1_plots, aes(x = Fits, y = Resids, label = LACE)) + 
+  geom_point(size = 3, alpha = 0.3) + geom_text(fontface = "bold") + 
+  theme_minimal() + 
+  ggtitle("LACE Mod 1 Deviance Residuals by Fitted Values")
+
+lace_mod1_gof <- pchisq(lace_mod1$deviance, df=15, lower.tail = FALSE)
+
+```
+
+Removing the potential outlier does not improve goodness-of-fit, so rather than remove information we can use a quasibinomial distribution to increase the standard errors of the model estimates and account for the additional variation in the data. Model fitting with covariates may also resolve the issue of extra-binomial variation.    
+
+Let's compare the base LACE model to an intercept-only model:  
+```{r lace_null}
+lace_nullmod <- glm(formula = cbind(n.Readmit, n - n.Readmit) ~ 1, 
+                  family = quasibinomial, data = readmit_lace)
+
+summary(lace_nullmod)
+
+lace_nullmod_plots <- data.frame(LACE = seq(2, 19, 1),
+                             Resids = resid(lace_nullmod, type = "deviance"),
+                             Fits = fitted(lace_nullmod))
+
+ggplot(lace_nullmod_plots, aes(x = LACE, y = Resids, label = LACE)) + 
+  geom_point(size = 3, alpha = 0.3) + geom_text(fontface = "bold") + 
+  theme_minimal() + 
+  ggtitle("Null Model Deviance Residuals")
+
+# Goodness-of-Fit Test
+lace_nullfit <- pchisq(lace_nullmod$deviance, df=17, lower.tail = FALSE)
+
+# Drop-in-deviance test for model comparison
+anova(lace_nullmod, lace_mod2, test="Chisq")
+```  
+
+  
+While the drop-in-deviance test shows the null model is superior to the base LACE model, the goodness-of-fit test (p = `r round(lace_nullfit, 3)`) shows strong evidence of lack-of-fit. This indicates covariates may have a role to play here.     
+  
+## Appendix F: HOSPITAL Model Residual Diagnostics {#AppendixF}  
+```{r hos_base_diag}
+# base model  
+summary(hos_mod0)
+
+hos_mod0_plots <- data.frame(HOS = seq(0, 11, 1),
+                             Resids = resid(hos_mod0, type = "deviance"),
+                             Fits = fitted(hos_mod0))
+
+ggplot(hos_mod0_plots, aes(x = Fits, y = Resids, label = HOS)) + 
+  geom_point(size = 3, alpha = 0.3) + geom_text(fontface = "bold") + 
+  theme_minimal() + 
+  ggtitle("HOSPITAL Mod 0 Deviance Residuals by Fitted Values")
+
+hos_mod0_gof <- pchisq(hos_mod0$deviance, df=10, lower.tail = FALSE)
+
+```
