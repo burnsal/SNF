@@ -197,7 +197,7 @@ Base CCI model: $log(\frac{p}{1-p}) = b_0 + b_1*CCI$ :
 ```{r base_cci_diag}
 summary(CCI_mod0)
 
-CCI_mod0_plots <- data.frame(CCI = seq(0, 15, 1),
+CCI_mod0_plots <- data.frame(CCI = seq(0, 14, 1),
                              Resids = resid(CCI_mod0, type = "deviance"),
                              Fits = fitted(CCI_mod0))
 
@@ -207,20 +207,20 @@ ggplot(CCI_mod0_plots, aes(x = Fits, y = Resids, label = CCI)) +
   ggtitle("Deviance Residuals by Fitted Values")
 
 # Goodness-of-Fit Test
-cci_modfit <- pchisq(CCI_mod0$deviance, df=14, lower.tail = FALSE)
+cci_modfit <- pchisq(CCI_mod0$deviance, df=13, lower.tail = FALSE)
 ```
 
-The results of the $\chi^2_{14}$ goodness-of-fit test (p = `r round(cci_modfit, 3)`) indicate significant evidence of lack of fit. This is likely due to the larger residuals for CCI values 13-14; could refit the model excluding this data which will result in better model fit, but it will not change the practical conclusion reached regarding the association between CCI score and risk of readmission.  
+The results of the $\chi^2_{14}$ goodness-of-fit test (p = `r round(cci_modfit, 3)`) indicate evidence of lack of fit. This is likely due to the larger residuals for CCI values 13-14; could refit the model excluding this data which will result in better model fit, but it will not change the practical conclusion reached regarding the association between CCI score and risk of readmission.  
 
 Another comparison we can make to this model is to a null (intercept-only) that can be written as: $log(\frac{p_{CCI_i}}{1-p_{CCI_{i}}}) = \beta_0$  
   
 ```{r cci_null}
 cci_nullmod <- glm(formula = cbind(n.Readmit, n - n.Readmit) ~ 1, 
-                  family = binomial(link = "logit"), data = readmit_cci_cut)
+                  family = binomial(link = "logit"), data = readmit_cci)
 
 summary(cci_nullmod)
 
-CCI_nullmod_plots <- data.frame(CCI = seq(0, 15, 1),
+CCI_nullmod_plots <- data.frame(CCI = seq(0, 14, 1),
                              Resids = resid(cci_nullmod, type = "deviance"),
                              Fits = fitted(cci_nullmod))
 
@@ -230,7 +230,7 @@ ggplot(CCI_nullmod_plots, aes(x = CCI, y = Resids, label = CCI)) +
   ggtitle("Null Model Deviance Residuals")
 
 # Goodness-of-Fit Test
-cci_nullfit <- pchisq(cci_nullmod$deviance, df=15, lower.tail = FALSE)
+cci_nullfit <- pchisq(cci_nullmod$deviance, df=14, lower.tail = FALSE)
 
 # Drop-in-deviance test for model comparison
 anova(cci_nullmod, CCI_mod0, test="Chisq")
@@ -244,7 +244,7 @@ The p-value (p = `r round(cci_nullfit)`) for the goodness-of-fit test on the nul
 # Base model with full data
 summary(lace_mod0)
 
-lace_mod0_plots <- data.frame(LACE = seq(2, 19, 1),
+lace_mod0_plots <- data.frame(LACE = seq(4, 18, 1),
                              Resids = resid(lace_mod0, type = "deviance"),
                              Fits = fitted(lace_mod0))
 
@@ -253,12 +253,12 @@ ggplot(lace_mod0_plots, aes(x = Fits, y = Resids, label = LACE)) +
   theme_minimal() + 
   ggtitle("LACE Mod 0 Deviance Residuals by Fitted Values")
 
-lace_mod0_gof <- pchisq(lace_mod0$deviance, df=16, lower.tail = FALSE)
+lace_mod0_gof <- pchisq(lace_mod0$deviance, df=13, lower.tail = FALSE)
 
 # Base model without LACE=12
 summary(lace_mod1)
 
-lace_mod1_plots <- data.frame(LACE = c(seq(2, 11, 1), seq(13, 19, 1)),
+lace_mod1_plots <- data.frame(LACE = c(seq(4, 11, 1), seq(13, 18, 1)),
                              Resids = resid(lace_mod1, type = "deviance"),
                              Fits = fitted(lace_mod1))
 
@@ -267,7 +267,7 @@ ggplot(lace_mod1_plots, aes(x = Fits, y = Resids, label = LACE)) +
   theme_minimal() + 
   ggtitle("LACE Mod 1 Deviance Residuals by Fitted Values")
 
-lace_mod1_gof <- pchisq(lace_mod1$deviance, df=15, lower.tail = FALSE)
+lace_mod1_gof <- pchisq(lace_mod1$deviance, df=12, lower.tail = FALSE)
 
 ```
 
@@ -280,7 +280,7 @@ lace_nullmod <- glm(formula = cbind(n.Readmit, n - n.Readmit) ~ 1,
 
 summary(lace_nullmod)
 
-lace_nullmod_plots <- data.frame(LACE = seq(2, 19, 1),
+lace_nullmod_plots <- data.frame(LACE = seq(4, 18, 1),
                              Resids = resid(lace_nullmod, type = "deviance"),
                              Fits = fitted(lace_nullmod))
 
@@ -289,8 +289,14 @@ ggplot(lace_nullmod_plots, aes(x = LACE, y = Resids, label = LACE)) +
   theme_minimal() + 
   ggtitle("Null Model Deviance Residuals")
 
+# quickly look at null model with outlier removed
+lace_out_null <- glm(formula = cbind(n.Readmit, n - n.Readmit) ~ 1, 
+                  family = binomial(link="logit"), data = readmit_lace_cut)
+
 # Goodness-of-Fit Test
-lace_nullfit <- pchisq(lace_nullmod$deviance, df=17, lower.tail = FALSE)
+lace_nullfit <- pchisq(lace_nullmod$deviance, df=14, lower.tail = FALSE)
+
+
 
 # Drop-in-deviance test for model comparison
 anova(lace_nullmod, lace_mod2, test="Chisq")

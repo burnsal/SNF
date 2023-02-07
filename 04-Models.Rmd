@@ -1,17 +1,8 @@
 
-  
-
-
 # Model Fitting
 
-Logistic regression is the appropriate model class for our binary response, where we want to model the probability that a record is for a readmission within 30 days. CCI values ranged 0-15; score values of 16, 17 were excluded due to small sample size (n = 1). LACE values ranged 2-19; no values were excluded. HOSPITAL values ranged 0-11; score values of 12 were excluded due to small sample size (n = 2).
-We start model fitting with a basic model for each calculated score.  
+Logistic regression is the appropriate model class for our binary response, where we want to model the probability that a record is for a readmission within 30 days.
 
-
-```{r cut_df}
-readmit_cci_cut <- readmit_cci %>% filter(CCI < 16)
-readmit_hos_cut <- readmit_hos %>% filter(HOSPITAL < 12)
-```  
   
 ## CCI 
 
@@ -30,7 +21,7 @@ where $i\ \epsilon\ [0, 14]$
 
 ```{r cci_base}
 # Fit base model
-CCI_mod0 <- glm(cbind(n.Readmit, n-n.Readmit) ~ CCI, family = binomial(link="logit"), data = readmit_cci_cut)
+CCI_mod0 <- glm(cbind(n.Readmit, n-n.Readmit) ~ CCI, family = binomial(link="logit"), data = readmit_cci)
 
 # get ests and confints
 cci_b0 <- CCI_mod0$coefficients[1]
@@ -43,28 +34,33 @@ cci_or_confint <- exp(cci_confint[2,])
 
 The estimated model for probability of readmission can be estimated as:  
 
-$$p_{CCI_i} = \frac{e^{-1.701 + 0.003*CCI_i}}{1+e^{-1.701 + 0.003*CCI_i}}$$
+$$p_{CCI_i} = \frac{e^{-1.70 + 0.003*CCI_i}}{1+e^{-1.70 + 0.003*CCI_i}}$$
 
 
 ```{r cci_modplot}
-x <- seq(0, 15, 0.1)
+x <- seq(0, 14, 0.1)
 y <- exp(cci_b0 + cci_b1*x) / (1 + (exp(cci_b0 + cci_b1*x)))
-cci_modline <- data.frame(x, y)
+y_025 <- exp(cci_confint[1,1] + cci_confint[2,1]*x) / (1 + (exp(cci_confint[1,1] + cci_confint[2,1]*x)))
+y_975 <- exp(cci_confint[1,2] + cci_confint[2,2]*x) / (1 + (exp(cci_confint[1,2] + cci_confint[2,2]*x)))
+cci_modline <- data.frame(x, y, y_025, y_975)
 
-cci_fits <- data.frame(CCI = seq(0, 15, 1),
+cci_fits <- data.frame(CCI = seq(0, 14, 1),
                        fit = fitted(CCI_mod0))
 
 cci_rawdat <- snf_data_a %>%
   select(c(CCI, Readmit)) %>%
   mutate(Readmit = as.numeric(Readmit) - 1) %>%
-  filter(CCI < 16)
+  filter(CCI < 15)
 
-ggplot(readmit_cci_cut, aes(CCI, p.Readmit)) +
+ggplot(readmit_cci, aes(CCI, p.Readmit)) +
   geom_point(col = 2, alpha = 0.7, size = 3) + 
   geom_point(data = cci_fits, aes(x = CCI, y = fit), col = 4, alpha = 0.7, shape = 15, size = 3) + 
   geom_jitter(data=cci_rawdat, aes(x = CCI, y=Readmit), width=0.1, height=0.05, alpha = 0.5, size = 1) + 
   geom_line(data=cci_modline, aes(x=x, y=y), alpha = 0.5) + 
-  ylim(0, 1) + 
+  geom_line(data=cci_modline, aes(x=x, y=y_025), alpha = 0.5, lty = 2) + 
+  geom_line(data=cci_modline, aes(x=x, y=y_975), alpha = 0.5, lty = 2) + 
+  scale_y_continuous(breaks = seq(0, 1, 0.1), limits = c(0, 1)) + 
+  scale_x_continuous(breaks = seq(0, 14, 2), limits = c(0, 14)) + 
   theme_minimal() + 
   labs(x = "CCI Score", y = "Probability of Readmission") + 
   ggtitle("Probability of Readmission by CCI: Raw data + fitted model")
@@ -105,6 +101,10 @@ lace_mod1 <- glm(cbind(n.Readmit, n-n.Readmit) ~ LACE,
 lace_mod2 <- glm(cbind(n.Readmit, n-n.Readmit) ~ LACE, 
                  family = quasibinomial, data = readmit_lace)
 
+# refit with outlier excluded and quasibinomial variation
+lace_mod3 <- glm(cbind(n.Readmit, n-n.Readmit) ~ LACE, 
+                 family = quasibinomial, data = readmit_lace_cut)
+
 # get ests and confints
 lace_b0 <- lace_mod2$coefficients[1]
 lace_b1 <- lace_mod2$coefficients[2]
@@ -113,11 +113,39 @@ lace_or <- exp(lace_b1)
 lace_or_confint <- exp(lace_confint[2,])
 ```
 
-The estimated odds for readmission based on LACE score is $e^{\hat{B_1}} = e^{0.155} = 1.167$, 95% CI: (1.117, 1.221); these results provide evidence that odds of readmission increases 11.7% - 22.1% for each increased value in LACE score. The confidence intervals given are calculated with an quasibinomial overdispersion parameter $\phi = 4.26$ to account for extra-binomial variation present in the data. See [Appendix E](#AppendixE) for full model diagnostics.
+The estimated odds for readmission based on LACE score is $e^{\hat{B_1}} = e^{0.155} = 1.167$, 95% CI: (1.117, 1.221); these results provide evidence that relative odds of readmission increasesexp() 11.7% - 22.1% for a one value increase in LACE score. The confidence intervals given are calculated with an quasibinomial overdispersion parameter $\phi = 4.26$ to account for extra-binomial variation present in the data. See [Appendix E](#AppendixE) for full model diagnostics.
 
 The estimated model for probability of readmission can be estimated as:  
 
-$$p_{LACE_i} = \frac{e^{-3.521 + 0.155*LACE_i}}{1+e^{-3.521 + 0.155*LACE_i}}$$
+$$p_{LACE_i} = \frac{e^{-3.525 + 0.155*LACE_i}}{1+e^{-3.525 + 0.155*LACE_i}}$$
+  
+```{r lace_modplot}
+x <- seq(4, 18, 0.1)
+y <- exp(lace_b0 + lace_b1*x) / (1 + (exp(lace_b0 + lace_b1*x)))
+y_025 <- exp(lace_confint[1,1] + lace_confint[2,1]*x) / (1 + (exp(lace_confint[1,1] + lace_confint[2,1]*x)))
+y_975 <- exp(lace_confint[1,2] + lace_confint[2,2]*x) / (1 + (exp(lace_confint[1,2] + lace_confint[2,2]*x)))
+lace_modline <- data.frame(x, y, y_025, y_975)
+
+lace_fits <- data.frame(LACE = seq(4, 18, 1),
+                       fit = fitted(lace_mod2))
+
+lace_rawdat <- snf_data_a %>%
+  select(c(LACE, Readmit)) %>%
+  mutate(Readmit = as.numeric(Readmit) - 1)
+
+ggplot(readmit_lace, aes(LACE, p.Readmit)) +
+  geom_point(col = 2, alpha = 0.7, size = 3) + 
+  geom_point(data = lace_fits, aes(x = LACE, y = fit), col = 4, alpha = 0.7, shape = 15, size = 3) + 
+  geom_jitter(data=lace_rawdat, aes(x = LACE, y=Readmit), width=0.1, height=0.05, alpha = 0.5, size = 1) + 
+  geom_line(data=lace_modline, aes(x=x, y=y), alpha = 0.5) + 
+  geom_line(data=lace_modline, aes(x=x, y=y_025), alpha = 0.5, lty = 2) + 
+  geom_line(data=lace_modline, aes(x=x, y=y_975), alpha = 0.5, lty = 2) + 
+  scale_y_continuous(breaks = seq(0, 1, 0.1), limits = c(0, 1)) + 
+  scale_x_continuous(breaks = seq(4, 18, 2), limits = c(4, 18)) + 
+  theme_minimal() + 
+  labs(x = "LACE Score", y = "Probability of Readmission") + 
+  ggtitle("Probability of Readmission by LACE: Raw data + fitted model")
+```  
 
 *Note: need to plot base model, fit models with covariates, and perform model selection*  
   
@@ -136,7 +164,7 @@ where $i\ \epsilon\ [0, 11]$
 ```{r hos_base}
 # fit base model
 hos_mod0 <- glm(cbind(n.Readmit, n-n.Readmit) ~ HOSPITAL, family=
-                  binomial(link="logit"), data = readmit_hos_cut)
+                  binomial(link="logit"), data = readmit_hos)
 
 # get ests and confints
 hos_b0 <- hos_mod0$coefficients[1]
@@ -147,7 +175,7 @@ hos_or_confint <- exp(hos_confint[2,])
 
 ```
   
-The estimated odds ratio readmission risk for HOSPITAL is $e^{\hat{B_1}} = e^{0.251} = 1.285$, 95% CI: (1.253, 1.318); these results provide evidence that odds of readmission increases between 25.3% - 31.8% for each increased value in HOSPITAL score.  
+The estimated odds ratio readmission risk for HOSPITAL is $e^{\hat{B_1}} = e^{0.249} = 1.283$, 95% CI: (1.251, 1.316); these results provide evidence that relative odds of readmission increases between 25.1% - 31.8% for a one value increase HOSPITAL score.  
   
 The estimated model for probability of readmission can be estimated as:  
 
@@ -155,7 +183,33 @@ $$p_{HOSP_i} = \frac{e^{-2.708 + 0.251*HOSP_i}}{1+e^{-2.708 + 0.251*HOSP_i}}$$
   
 Full model diagnostics are available in [Appendix F](#AppendixF)  
   
-*Note need to plot base model, fit models with covariates, and perform model selection*    
+```{r hos_modplot}
+x <- seq(0, 11, 0.1)
+y <- exp(hos_b0 + hos_b1*x) / (1 + (exp(hos_b0 + hos_b1*x)))
+y_025 <- exp(hos_confint[1,1] + hos_confint[2,1]*x) / (1 + (exp(hos_confint[1,1] + hos_confint[2,1]*x)))
+y_975 <- exp(hos_confint[1,2] + hos_confint[2,2]*x) / (1 + (exp(hos_confint[1,2] + hos_confint[2,2]*x)))
+hos_modline <- data.frame(x, y, y_025, y_975)
+
+hos_fits <- data.frame(HOSPITAL = seq(0, 11, 1),
+                       fit = fitted(hos_mod0))
+
+hos_rawdat <- snf_data_a %>%
+  select(c(HOSPITAL, Readmit)) %>%
+  mutate(Readmit = as.numeric(Readmit) - 1)
+
+ggplot(readmit_hos, aes(HOSPITAL, p.Readmit)) +
+  geom_point(col = 2, alpha = 0.7, size = 3) + 
+  geom_point(data = hos_fits, aes(x = HOSPITAL, y = fit), col = 4, alpha = 0.7, shape = 15, size = 3) + 
+  geom_jitter(data=hos_rawdat, aes(x = HOSPITAL, y=Readmit), width=0.1, height=0.05, alpha = 0.5, size = 1) + 
+  geom_line(data=hos_modline, aes(x=x, y=y), alpha = 0.5) + 
+  geom_line(data=hos_modline, aes(x=x, y=y_025), alpha = 0.5, lty = 2) + 
+  geom_line(data=hos_modline, aes(x=x, y=y_975), alpha = 0.5, lty = 2) + 
+  scale_y_continuous(breaks = seq(0, 1, 0.1), limits = c(0, 1)) + 
+  scale_x_continuous(breaks = seq(0, 12, 2), limits = c(0, 12)) + 
+  theme_minimal() + 
+  labs(x = "HOSPITAL Score", y = "Probability of Readmission") + 
+  ggtitle("Probability of Readmission by HOSPITAL: Raw data + fitted model")
+```
   
   
 ## Additional Model Fitting  

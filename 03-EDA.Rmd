@@ -1,6 +1,6 @@
 # Exploratory Data Analysis
 
-Our primary research interest is whether or not the probability of readmission is associated with calculated score. We calculate the odds $\frac{p}{1-p}$ empirical log odds $log(\frac{p}{1-p})$ of readmissions associated with each level of each acuity score and visualize the potential associations, where $p$ is the probability that a record is of a readmission within 30 days. Summary tables for unaggregated CCI, LACE, and HOSPITAL scorescan be found in [Appendix A](#AppendixA): .
+Our primary research interest is whether or not the probability of readmission is associated with calculated score. We calculate the odds $\frac{p}{1-p}$ empirical log odds $log(\frac{p}{1-p})$ of readmissions associated with each level of each acuity score and visualize the potential associations, where $p$ is the probability that a record is of a readmission within 30 days. Summary tables for unaggregated CCI, LACE, and HOSPITAL scores can be found in [Appendix A](#AppendixA): .
 
 ```{r readmit_CCI}
 readmit_cci_org <- snf_data_a %>%
@@ -21,6 +21,8 @@ readmit_cci <- snf_data_a %>%
             logit.Readmit = log(odds.Readmit))
 
 readmit_cci %>% 
+  mutate(CCI = as.character(CCI),
+         CCI = ifelse(CCI == "14", ">=14", CCI)) %>%
   kbl(caption = "Readmission Empirical Statistics by CCI Score", digits=3,
       col.names = c("CCI Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_classic_2(full_width = F)
@@ -46,6 +48,9 @@ readmit_lace <- snf_data_a %>%
             logit.Readmit = log(odds.Readmit))
 
 readmit_lace %>% 
+  mutate(LACE = as.character(LACE),
+         LACE = ifelse(LACE == "4", "<=4",
+                       ifelse(LACE == "18", ">=18", LACE))) %>%
   kbl(caption = "Readmission Empirical Statistics by LACE Score", digits=3,
       col.names = c("LACE Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_classic_2(full_width = F)
@@ -70,6 +75,8 @@ readmit_hos <- snf_data_a %>%
             logit.Readmit = log(odds.Readmit))
 
 readmit_hos %>% 
+  mutate(HOSPITAL = as.character(HOSPITAL),
+         HOSPITAL = ifelse(HOSPITAL == "11", ">=11", HOSPITAL)) %>%
   kbl(caption = "Readmission Empirical Statistics by HOSPITAL Score", digits=3,
       col.names = c("HOS Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
   kable_classic_2(full_width = F)
