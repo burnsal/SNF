@@ -124,7 +124,7 @@ readmit_lace_ins %>%
 
 
 lace_gen_plot <- readmit_lace_gen %>% na_if(-Inf)
-ggplot(lace_gen_plot, aes(x = LACE, y=logit.Readmit, shape=Value, label=LACE)) + 
+ggplot(lace_gen_plot, aes(x = LACE, y=logit.Readmit, shape=Gender, label=LACE)) + 
   geom_point(alpha = 0.3, size = 5) + geom_line(alpha = 0.3) +
   geom_text() + 
   labs(x = "LACE Score", y = "Empirical Logit", shape = "Gender") + 
@@ -169,7 +169,7 @@ readmit_hos_ins %>%
   column_spec(1, bold=T)
 
 hos_gen_plot <- readmit_hos_gen %>% na_if(-Inf)
-ggplot(hos_gen_plot, aes(x = HOSPITAL, y=logit.Readmit, shape=Value, label=HOSPITAL)) + 
+ggplot(hos_gen_plot, aes(x = HOSPITAL, y=logit.Readmit, shape=Gender, label=HOSPITAL)) + 
   geom_point(alpha = 0.3, size = 5) + geom_line(alpha = 0.3) +
   geom_text() + 
   labs(x = "HOSP Score", y = "Empirical Logit", shape = "Gender") + 
@@ -191,134 +191,193 @@ ggplot(hos_ins_plot, aes(x = HOSPITAL, y=logit.Readmit, shape=Value, label=HOSPI
 ```
 
 
-## Appendix D: CCI Model Residual Diagnostics {#AppendixD}
+## Appendix D: CCI Model Comparison and Diagnostics {#AppendixD}
+Since the base CCI model showed no evidence of a relationship between readmission risk and CCI score, expanded covariate models were not considered.  
 
-Base CCI model: $log(\frac{p}{1-p}) = b_0 + b_1*CCI$ :  
-```{r base_cci_diag}
-summary(CCI_mod0)
+```{r cci_diag}
+CCI_eq <- "$B_0 + B_1*CCI$"
+CCI_est <- round(CCI_mod0$coefficients[2], 3)
+CCI_confint <- paste(round(cci_confint[2,1], 3), 
+                     round(cci_confint[2,2], 3), sep = ", ")
+CCI_dev <- round(CCI_mod0$deviance)
+CCI_df <- CCI_mod0$df.residual
+CCI_aic <- round(AIC(CCI_mod0))
 
-CCI_mod0_plots <- data.frame(CCI = seq(0, 14, 1),
-                             Resids = resid(CCI_mod0, type = "deviance"),
-                             Fits = fitted(CCI_mod0))
+cci_mod_tab <- data.frame(cbind(CCI_eq, 
+                                CCI_est, 
+                                CCI_confint,
+                                CCI_dev, 
+                                CCI_df, 
+                                CCI_aic))
+colnames(cci_mod_tab) <- c("$log(\\frac{p_{CCI_i}}{1-p_{CCI_{i}}})$",
+                           "$B_1$ Estimate", "$B_1$ 95% CI",
+                           "Residual Deviance", "Degrees of Freedom",
+                           "AIC")
+rownames(cci_mod_tab) <- NULL
 
-ggplot(CCI_mod0_plots, aes(x = Fits, y = Resids, label = CCI)) + 
-  geom_point(size = 3, alpha = 0.3) + geom_text(fontface = "bold") + 
-  theme_minimal() + 
-  ggtitle("Deviance Residuals by Fitted Values")
-
-# Goodness-of-Fit Test
-cci_modfit <- pchisq(CCI_mod0$deviance, df=13, lower.tail = FALSE)
+cci_models <- kbl(cci_mod_tab, caption = "CCI Model Summary", escape = FALSE) %>%
+  kable_classic_2(full_width = FALSE)
+cci_models
 ```
 
-The results of the $\chi^2_{14}$ goodness-of-fit test (p = `r round(cci_modfit, 3)`) indicate evidence of lack of fit. This is likely due to the larger residuals for CCI values 13-14; could refit the model excluding this data which will result in better model fit, but it will not change the practical conclusion reached regarding the association between CCI score and risk of readmission.  
-
-Another comparison we can make to this model is to a null (intercept-only) that can be written as: $log(\frac{p_{CCI_i}}{1-p_{CCI_{i}}}) = \beta_0$  
-  
-```{r cci_null}
-cci_nullmod <- glm(formula = cbind(n.Readmit, n - n.Readmit) ~ 1, 
-                  family = binomial(link = "logit"), data = readmit_cci)
-
-summary(cci_nullmod)
-
-CCI_nullmod_plots <- data.frame(CCI = seq(0, 14, 1),
-                             Resids = resid(cci_nullmod, type = "deviance"),
-                             Fits = fitted(cci_nullmod))
-
-ggplot(CCI_nullmod_plots, aes(x = CCI, y = Resids, label = CCI)) + 
-  geom_point(size = 3, alpha = 0.3) + geom_text(fontface = "bold") + 
-  theme_minimal() + 
-  ggtitle("Null Model Deviance Residuals")
-
-# Goodness-of-Fit Test
-cci_nullfit <- pchisq(cci_nullmod$deviance, df=14, lower.tail = FALSE)
-
-# Drop-in-deviance test for model comparison
-anova(cci_nullmod, CCI_mod0, test="Chisq")
-```  
-
-The p-value (p = `r round(cci_nullfit)`) for the goodness-of-fit test on the null model is borderline, but the drop-in-deviance model comparison test does not provide strong evidence that the null model is a better fit than modeling CCI score to the data.  
 
   
-## Appendix E: LACE Model Residual Diagnostics {#AppendixE}
-```{r base_lace_diag}
-# Base model with full data
-summary(lace_mod0)
+## Appendix E: LACE Model Comparisons {#AppendixE}
 
-lace_mod0_plots <- data.frame(LACE = seq(4, 18, 1),
-                             Resids = resid(lace_mod0, type = "deviance"),
-                             Fits = fitted(lace_mod0))
+```{r lace_models}
+lace_eq <- c("$B_0 + B_1*LACE$", "$B_0 + B_1*LACE + B_2*Gender$",
+             "$B_0 + B_1*LACE + B_2*Age + \\\\ \\ \\ \\ \\  B_3*Year + B_4*Gender + B5*Insurance$",
+             "$B_0 + B_1*LACE * B_2*Age * \\\\  \\ \\ \\ \\ B_3*Year * B_4*Gender * B5*Insurance$")
+lace_est <- c(round(lace_mod0$coefficients[2], 3),
+              round(lace_gen_mod$coefficients[2], 3),
+              round(lace_add_mod$coefficients[2], 3),
+              round(lace_sat_mod$coefficients[2], 3))
+lace_mod0_confint <- round(confint(lace_mod0)[2,], 3)
+lace_gen_confint <- round(confint(lace_gen_mod)[2,], 3)
+lace_add_confint <- round(confint(lace_add_mod)[2,], 3)
+lace_sat_confint <- round(confint(lace_sat_mod)[2,], 3)
+lace_ci <- c(paste(lace_mod0_confint[1], lace_mod0_confint[2], sep = ", "),
+             paste(lace_gen_confint[1], lace_gen_confint[2], sep = ", "),
+             paste(lace_add_confint[1], lace_add_confint[2], sep = ", "),
+             paste(lace_sat_confint[1], lace_sat_confint[2], sep = ", "))
+lace_dev <- c(round(lace_mod0$deviance), round(lace_gen_mod$deviance),
+              round(lace_add_mod$deviance), round(lace_sat_mod$deviance))
+lace_df <- c(round(lace_mod0$df.residual), round(lace_gen_mod$df.residual),
+              round(lace_add_mod$df.residual), round(lace_sat_mod$df.residual))
+lace_aic <- c(round(AIC(lace_mod0)), round(AIC(lace_gen_mod)),
+              round(AIC(lace_add_mod)), round(AIC(lace_sat_mod)))
 
-ggplot(lace_mod0_plots, aes(x = Fits, y = Resids, label = LACE)) + 
-  geom_point(size = 3, alpha = 0.3) + geom_text(fontface = "bold") + 
-  theme_minimal() + 
-  ggtitle("LACE Mod 0 Deviance Residuals by Fitted Values")
+lace_mod_tab <- data.frame(cbind(lace_eq, lace_est, lace_ci, 
+                                 lace_dev, lace_df, lace_aic))
+colnames(lace_mod_tab) <- c("$log(\\frac{p_{LACE_i}}{1-p_{LACE_{i}}})$",
+                           "$B_1$ Estimate", "$B_1$ 95% CI",
+                           "Residual Deviance", "Degrees of Freedom",
+                           "AIC")
+rownames(lace_mod_tab) <- NULL
 
-lace_mod0_gof <- pchisq(lace_mod0$deviance, df=13, lower.tail = FALSE)
+lace_models <- kbl(lace_mod_tab, caption = "LACE Model Comparison", 
+                   linesep = "\\addlinespace", escape = FALSE) %>%
+  kable_classic_2(full_width = FALSE)
 
-# Base model without LACE=12
-summary(lace_mod1)
+lace_models
 
-lace_mod1_plots <- data.frame(LACE = c(seq(4, 11, 1), seq(13, 18, 1)),
-                             Resids = resid(lace_mod1, type = "deviance"),
-                             Fits = fitted(lace_mod1))
+```
+  
+## Appendix F: HOSPITAL Model Comparisons {#AppendixF}  
+```{r stayduration_models}
+hos_eq <- c("$B_0 + B_1*HOSPITAL$", "$B_0 + B_1*HOSPITAL + B_2*Gender$",
+             "$B_0 + B_1*HOSPITAL + B_2*Age + \\\\ \\ \\ \\ \\  B_3*Year + B_4*Gender + B5*Insurance$",
+             "$B_0 + B_1*HOSPITAL * B_2*Age * \\\\ \\ \\ \\ \\  B_3*Year * B_4*Gender * B5*Insurance$")
+hos_est <- c(round(hos_mod0$coefficients[2], 3),
+              round(hos_gen_mod$coefficients[2], 3),
+              round(hos_add_mod$coefficients[2], 3),
+              round(hos_sat_mod$coefficients[2], 3))
+hos_mod0_confint <- round(confint(hos_mod0)[2,], 3)
+hos_gen_confint <- round(confint(hos_gen_mod)[2,], 3)
+hos_add_confint <- round(confint(hos_add_mod)[2,], 3)
+hos_sat_confint <- round(confint(hos_sat_mod)[2,], 3)
+hos_ci <- c(paste(hos_mod0_confint[1], hos_mod0_confint[2], sep = ", "),
+             paste(hos_gen_confint[1], hos_gen_confint[2], sep = ", "),
+             paste(hos_add_confint[1], hos_add_confint[2], sep = ", "),
+             paste(hos_sat_confint[1], hos_sat_confint[2], sep = ", "))
+hos_dev <- c(round(hos_mod0$deviance), round(hos_gen_mod$deviance),
+              round(hos_add_mod$deviance), round(hos_sat_mod$deviance))
+hos_df <- c(round(hos_mod0$df.residual), round(hos_gen_mod$df.residual),
+              round(hos_add_mod$df.residual), round(hos_sat_mod$df.residual))
+hos_aic <- c(round(AIC(hos_mod0)), round(AIC(hos_gen_mod)),
+              round(AIC(hos_add_mod)), round(AIC(hos_sat_mod)))
 
-ggplot(lace_mod1_plots, aes(x = Fits, y = Resids, label = LACE)) + 
-  geom_point(size = 3, alpha = 0.3) + geom_text(fontface = "bold") + 
-  theme_minimal() + 
-  ggtitle("LACE Mod 1 Deviance Residuals by Fitted Values")
+hos_mod_tab <- data.frame(cbind(hos_eq, hos_est, hos_ci, hos_dev, hos_df, hos_aic))
+colnames(hos_mod_tab) <- c("$log(\\frac{p_{HOSPITAL_i}}{1-p_{HOSPITAL_{i}}})$",
+                           "$B_1$ Estimate", "$B_1$ 95% CI",
+                           "Residual Deviance", "Degrees of Freedom",
+                           "AIC")
+rownames(hos_mod_tab) <- NULL
 
-lace_mod1_gof <- pchisq(lace_mod1$deviance, df=12, lower.tail = FALSE)
+hos_models <- kbl(hos_mod_tab, caption = "HOSPITAL Model Comparison", 
+                   linesep = "\\addlinespace", escape = FALSE) %>%
+  kable_classic_2(full_width = FALSE)
+
+hos_models
 
 ```
 
-Removing the potential outlier does not improve goodness-of-fit, so rather than remove information we can use a quasibinomial distribution to increase the standard errors of the model estimates and account for the additional variation in the data. Model fitting with covariates may also resolve the issue of extra-binomial variation.    
+## Appendix G: LOS Follow Up Analysis {#AppendixG}
 
-Let's compare the base LACE model to an intercept-only model:  
-```{r lace_null}
-lace_nullmod <- glm(formula = cbind(n.Readmit, n - n.Readmit) ~ 1, 
-                  family = quasibinomial, data = readmit_lace)
+```{r filter_readmits}
+snf_readmits <- snf_data_fit %>% filter(Readmit == "Y")
+```
 
-summary(lace_nullmod)
+```{r los_plots}
+los_cci_plot <- snf_readmits %>%
+  group_by(CCI, Gender) %>%
+  summarize(mean.stay = mean(StayDurationDays))
 
-lace_nullmod_plots <- data.frame(LACE = seq(4, 18, 1),
-                             Resids = resid(lace_nullmod, type = "deviance"),
-                             Fits = fitted(lace_nullmod))
-
-ggplot(lace_nullmod_plots, aes(x = LACE, y = Resids, label = LACE)) + 
-  geom_point(size = 3, alpha = 0.3) + geom_text(fontface = "bold") + 
+ggplot(los_cci_plot, aes(x = CCI, y = mean.stay, lty = Gender)) + 
+  geom_line() + 
   theme_minimal() + 
-  ggtitle("Null Model Deviance Residuals")
+  scale_x_continuous(breaks = seq(0, 14, 2), limits = c(0, 14)) + 
+  scale_y_continuous(breaks = seq(0, 16, 2), limits = c(0, 16)) +
+  labs(y = "Average LOS") + 
+  ggtitle("Average Length of Stay by CCI Score, Gender")
 
-# quickly look at null model with outlier removed
-lace_out_null <- glm(formula = cbind(n.Readmit, n - n.Readmit) ~ 1, 
-                  family = binomial(link="logit"), data = readmit_lace_cut)
+los_lace_plot <- snf_readmits %>%
+  group_by(LACE, Gender) %>%
+  summarize(mean.stay = mean(StayDurationDays))
 
-# Goodness-of-Fit Test
-lace_nullfit <- pchisq(lace_nullmod$deviance, df=14, lower.tail = FALSE)
-
-
-
-# Drop-in-deviance test for model comparison
-anova(lace_nullmod, lace_mod2, test="Chisq")
-```  
-
-  
-While the drop-in-deviance test shows the null model is superior to the base LACE model, the goodness-of-fit test (p = `r round(lace_nullfit, 3)`) shows strong evidence of lack-of-fit. This indicates covariates may have a role to play here.     
-  
-## Appendix F: HOSPITAL Model Residual Diagnostics {#AppendixF}  
-```{r hos_base_diag}
-# base model  
-summary(hos_mod0)
-
-hos_mod0_plots <- data.frame(HOS = seq(0, 11, 1),
-                             Resids = resid(hos_mod0, type = "deviance"),
-                             Fits = fitted(hos_mod0))
-
-ggplot(hos_mod0_plots, aes(x = Fits, y = Resids, label = HOS)) + 
-  geom_point(size = 3, alpha = 0.3) + geom_text(fontface = "bold") + 
+ggplot(los_lace_plot, aes(x = LACE, y = mean.stay, lty = Gender)) + 
+  geom_line() + 
   theme_minimal() + 
-  ggtitle("HOSPITAL Mod 0 Deviance Residuals by Fitted Values")
+  scale_x_continuous(breaks = seq(4, 18, 2), limits = c(4, 18)) + 
+  scale_y_continuous(breaks = seq(0, 16, 2), limits = c(0, 16)) +
+  labs(y = "Average LOS") + 
+  ggtitle("Average Length of Stay by LACE Score, Gender")
 
-hos_mod0_gof <- pchisq(hos_mod0$deviance, df=10, lower.tail = FALSE)
+los_hos_plot <- snf_readmits %>%
+  group_by(HOSPITAL, Gender) %>%
+  summarize(mean.stay = mean(StayDurationDays))
+
+ggplot(los_hos_plot, aes(x = HOSPITAL, y = mean.stay, lty = Gender)) + 
+  geom_line() + 
+  theme_minimal() + 
+  scale_x_continuous(breaks = seq(0, 11, 2), limits = c(0, 11)) +
+  scale_y_continuous(breaks = seq(0, 16, 2), limits = c(0, 16)) +
+  labs(y = "Average LOS") + 
+  ggtitle("Average Length of Stay by HOSPITAL Score, Gender")
+```
+
+```{r los_mods}
+# Linear Models
+cci_los_mod <- lm(StayDurationDays ~ CCI, data = snf_data_fit)
+lace_los_mod <- lm(StayDurationDays ~ LACE + Gender, data = snf_data_fit)
+hos_los_mod <- lm(StayDurationDays ~ HOSPITAL + Gender, data = snf_data_fit)
+
+# Pearson's correlation coef
+cors <- c(round(cor(snf_data_fit$CCI, snf_data_fit$StayDurationDays), 3),
+          round(cor(snf_data_fit$LACE, snf_data_fit$StayDurationDays), 3),
+          round(cor(snf_data_fit$HOSPITAL, snf_data_fit$StayDurationDays), 3))
+
+los_ests <- c(round(cci_los_mod$coefficients[2], 3),
+              round(lace_los_mod$coefficients[2], 3),
+              round(hos_los_mod$coefficients[2], 3))
+
+los_ci <- c(paste(round(confint(cci_los_mod)[2,1], 3), 
+                  round(confint(cci_los_mod)[2,2], 3), sep = ", "),
+             paste(round(confint(lace_los_mod)[2,1], 3), 
+                   round(confint(lace_los_mod)[2,2], 3), sep = ", "),
+             paste(round(confint(hos_los_mod)[2,1], 3), 
+                   round(confint(hos_los_mod)[2,2], 3), sep = ", "))
+
+score <- c("CCI", "LACE", "HOSPITAL")
+
+los_tab <- data.frame(cbind(score, cors, los_ests, los_ci))
+colnames(los_tab) <- c("Score", "Pearson's Corr", "LM Est", "95% CI")
+
+los_models <- kbl(los_tab, caption = "Length of Stay by Score", 
+                   linesep = "\\addlinespace", escape = FALSE) %>%
+  kable_classic_2(full_width = FALSE)
+
+los_models
 
 ```
+

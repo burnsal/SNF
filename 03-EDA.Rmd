@@ -17,15 +17,15 @@ readmit_cci <- snf_data_a %>%
   summarize(meanAge = mean(PatientAge), n=n(), 
             n.Readmit = sum(Readmit == "Y"),
             p.Readmit = sum(Readmit == "Y")/n,
-            odds.Readmit = p.Readmit / (1 - p.Readmit),
-            logit.Readmit = log(odds.Readmit))
+            odds.Readmit = p.Readmit / (1 - p.Readmit))
 
-readmit_cci %>% 
+readmit_cci_tbl <- readmit_cci %>% 
   mutate(CCI = as.character(CCI),
          CCI = ifelse(CCI == "14", ">=14", CCI)) %>%
   kbl(caption = "Readmission Empirical Statistics by CCI Score", digits=3,
-      col.names = c("CCI Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
-  kable_classic_2(full_width = F)
+      col.names = c("CCI Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds")) %>%
+  kable_classic_2(full_width = F) 
+readmit_cci_tbl
 ```
 
 ```{r readmit_LACE}
@@ -44,16 +44,16 @@ readmit_lace <- snf_data_a %>%
   summarize(meanAge = mean(PatientAge), n=n(), 
             n.Readmit = sum(Readmit == "Y"),
             p.Readmit = sum(Readmit == "Y")/n,
-            odds.Readmit = p.Readmit / (1 - p.Readmit),
-            logit.Readmit = log(odds.Readmit))
+            odds.Readmit = p.Readmit / (1 - p.Readmit))
 
 readmit_lace %>% 
   mutate(LACE = as.character(LACE),
          LACE = ifelse(LACE == "4", "<=4",
                        ifelse(LACE == "18", ">=18", LACE))) %>%
   kbl(caption = "Readmission Empirical Statistics by LACE Score", digits=3,
-      col.names = c("LACE Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
-  kable_classic_2(full_width = F)
+      col.names = c("LACE Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds")) %>%
+  kable_classic_2(full_width = F) %>%
+  save_kable("readmit_lace.png")
 ```
 
 ```{r readmit_HOS}
@@ -71,15 +71,15 @@ readmit_hos <- snf_data_a %>%
   summarize(meanAge = mean(PatientAge), n=n(), 
             n.Readmit = sum(Readmit == "Y"),
             p.Readmit = sum(Readmit == "Y")/n,
-            odds.Readmit = p.Readmit / (1 - p.Readmit),
-            logit.Readmit = log(odds.Readmit))
+            odds.Readmit = p.Readmit / (1 - p.Readmit))
 
 readmit_hos %>% 
   mutate(HOSPITAL = as.character(HOSPITAL),
          HOSPITAL = ifelse(HOSPITAL == "11", ">=11", HOSPITAL)) %>%
   kbl(caption = "Readmission Empirical Statistics by HOSPITAL Score", digits=3,
-      col.names = c("HOS Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds", "Readmit Logit")) %>%
-  kable_classic_2(full_width = F)
+      col.names = c("HOS Score", "Mean Age", "N", "Readmit No.", "Readmit Prop", "Readmit Odds")) %>%
+  kable_classic_2(full_width = F) %>%
+  save_kable("readmit_hos.png")
 ```
 
 ```{r readmit_scores_plot}
@@ -104,14 +104,14 @@ readmit_data <- bind_rows(cci_bind, lace_bind, hos_bind)
 # remove -inf rows for plotting
 readmit_plot <- readmit_data %>% na_if(-Inf)
 
-# plot empirical logits 
-ggplot(readmit_plot, aes(x = Value, y = logit.Readmit, shape = Score, label = Value)) + 
-  geom_point(alpha=0.4, size = 3) + 
-  geom_text() +  geom_line(alpha=0.3) + 
-  theme_minimal() + 
-  labs(x = "Acuity Score", y = "Empirical Logit") + 
-  facet_wrap(vars(Score)) + 
-  ggtitle("Empirical Logits by Acuity Score")
+# # plot empirical logits 
+# ggplot(readmit_plot, aes(x = Value, y = logit.Readmit, shape = Score, label = Value)) + 
+#   geom_point(alpha=0.4, size = 3) + 
+#   geom_text() +  geom_line(alpha=0.3) + 
+#   theme_minimal() + 
+#   labs(x = "Acuity Score", y = "Empirical Logit") + 
+#   facet_wrap(vars(Score)) + 
+#   ggtitle("Empirical Logits by Acuity Score")
 ```
   
   
